@@ -15,10 +15,6 @@ use App\Http\Controllers\AtasanController;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
 Route::get('/logins', [LoginController::class, 'index']);
 
 Route::get('/', [AtasanController::class, 'landing'])->name('landing');
