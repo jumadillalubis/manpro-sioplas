@@ -246,15 +246,15 @@
       onerror="this.src='https://i.pravatar.cc/100?u=default';"
     />
     <div class="profile-info">
-      <h4 style="margin:0; font-size:14px;">Ade Samsudin</h4>
-      <p style="margin:0; font-size:12px; color:var(--muted);">Atasan</p>
+      <h4 style="margin:0; font-size:14px;">{{ session('atasan_nama', 'Atasan') }}</h4>
+      <p style="margin:0; font-size:12px; color:var(--muted);">{{ session('atasan_jabatan', 'Atasan') }}</p>
     </div>
   </div>
 </div>
 
 
     <div class="content">
-      <h2>Selamat Datang, Pak Ade</h2>
+      <h2>Selamat Datang, {{ session('atasan_nama', 'Atasan') }}</h2>
 
       <div class="stats">
         <div class="box">
@@ -271,7 +271,7 @@
         <h3>Team Manajemen</h3>
         <ul class="team-list">
   <li onclick="showTeam('tata')">
-    <img src="https://img.icons8.com/?size=160&id=7sjm5xqiJN88&format=png" alt="tata"/> Tata Usaha
+    <img src="https://img.icons8.com/?size=160&id=2969&format=png" alt="tata"/> Tata Usaha
   </li>
   <li onclick="showTeam('produksi')">
     <img src="https://img.icons8.com/?size=160&id=12137&format=png" alt="produksi"/> Produksi Primer
