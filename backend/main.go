@@ -2,6 +2,7 @@ package main
 
 import (
 	"SIOPLAS/config"
+	"SIOPLAS/controllers"
 	"SIOPLAS/models"
 	"net/http"
 
@@ -30,27 +31,17 @@ func main() {
 		c.Next()
 	})
 
-	// ✅ Endpoint GET semua data login
-	r.GET("/api/login", func(c *gin.Context) {
+	// ✅ Endpoint POST login untuk semua role (Atasan, Katimja, Staff)
+	// Mencari data yang sudah ada di database SIOPLAS (tidak membuat data baru)
+	r.POST("/api/login", controllers.Login)
+
+	// ✅ Endpoint GET semua data login (untuk keperluan lain)
+	r.GET("/api/logins", func(c *gin.Context) {
 		var logins []models.Login
 		config.DB.Find(&logins)
 		c.JSON(http.StatusOK, gin.H{
 			"status": "success",
 			"data":   logins,
-		})
-	})
-
-	// ✅ Endpoint POST tambah data login
-	r.POST("/api/login", func(c *gin.Context) {
-		var login models.Login
-		if err := c.ShouldBindJSON(&login); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		config.DB.Create(&login)
-		c.JSON(http.StatusOK, gin.H{
-			"status": "success",
-			"data":   login,
 		})
 	})
 
@@ -69,10 +60,11 @@ func main() {
 		})
 	})
 
-	// ✅ Endpoint POST login atasan
+	// ✅ Endpoint POST login atasan (untuk backward compatibility)
+	// Mencari data yang sudah ada di tabel atasans (tidak membuat data baru)
 	r.POST("/api/atasan/login", func(c *gin.Context) {
 		var input struct {
-			Email    string `json:"email"`
+			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 
@@ -82,14 +74,16 @@ func main() {
 		}
 
 		var atasan models.Atasan
-		if err := config.DB.Where("email = ? AND password = ?", input.Email, input.Password).First(&atasan).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Email atau password salah"})
+		// Hanya membaca dari database SIOPLAS, tidak membuat data baru
+		if err := config.DB.Where("nama = ? AND password = ?", input.Username, input.Password).First(&atasan).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Username atau password salah. Pastikan data sudah ada di database SIOPLAS."})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "success",
 			"message": "Login berhasil",
+			"jabatan": atasan.Jabatan, // Jabatan dari database SIOPLAS
 			"data":    atasan,
 		})
 	})
@@ -109,6 +103,52 @@ func main() {
 		})
 	})
 
+	// ✅ Endpoint GET semua data katimja (untuk debugging)
+	r.GET("/api/katimja", func(c *gin.Context) {
+		var katimjas []models.Katimja
+
+		// Cek apakah tabel ada
+		if !config.DB.Migrator().HasTable(&models.Katimja{}) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":  "info",
+				"message": "Tabel katimjas belum ada atau tidak ditemukan",
+				"count":   0,
+				"data":    []models.Katimja{},
+			})
+			return
+		}
+
+		if err := config.DB.Find(&katimjas).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   err.Error(),
+				"message": "Error saat membaca data dari tabel katimjas",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "success",
+			"message": "Data berhasil diambil dari tabel katimjas",
+			"count":   len(katimjas),
+			"data":    katimjas,
+		})
+	})
+
+	// ✅ Endpoint GET data katimja berdasarkan ID
+	r.GET("/api/katimja/:id", func(c *gin.Context) {
+		var katimja models.Katimja
+		id := c.Param("id")
+
+		if err := config.DB.First(&katimja, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Data katimja tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   katimja,
+		})
+	})
+
 	// ✅ Jalankan server
-	r.Run(":8081")
+	r.Run(":8080")
 }

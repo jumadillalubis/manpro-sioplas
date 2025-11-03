@@ -28,6 +28,7 @@
     }
   </style>
   <script>
+    // Setelah 2.5 detik, ke halaman login
     setTimeout(() => {
       window.location.href = '/login';
     }, 2500);
@@ -37,4 +38,3 @@
   <img src="{{ asset('images/sioplas-logo.png') }}" alt="Sioplas Logo">
 </body>
 </html>
-
