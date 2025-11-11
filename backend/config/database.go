@@ -43,6 +43,11 @@ func ConnectDatabase() {
 		&models.Katimja{},
 		&models.Staff{},
 		&models.Login{}, 
+		&models.ResetPW{},
+		&models.Tugas{},
+		&models.DetailTugas{},
+		&models.PengumpulanLaporan{},
+		&models.Laporan{},
 	)
 	if err != nil {
 		log.Fatal("❌ Gagal migrasi tabel:", err)

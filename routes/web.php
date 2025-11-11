@@ -5,6 +5,7 @@ use App\Http\Controllers\LoginController;
 use App\Http\Controllers\AtasanController;
 use App\Http\Controllers\KatimjaController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\ResetPwController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +22,9 @@ use App\Http\Controllers\StaffController;
 Route::get('/', function () {
     return view('Auth.landing_page');
 })->name('landing');
+
+
+Route::post('/reset-password', [ResetPwController::class, 'reset']);
 
 // Login Routes
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
