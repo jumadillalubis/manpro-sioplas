@@ -9,7 +9,7 @@ class LoginController extends Controller
 {
     public function showLogin()
     {
-        return view('Auth.Login_Atasan');
+        return view('Auth.Login_SIOPLAS');
     }
 
     public function authenticate(Request $request)
@@ -42,7 +42,7 @@ class LoginController extends Controller
                         'user_id' => $userData['id'],
                         'user_nama' => $userData['nama'],
                         'user_email' => $userData['email'] ?? '',
-                        'user_jabatan' => $jabatan, // Jabatan dari database sebagai patokan
+                        'user_jabatan' => $jabatan, 
                         'user_pangkat_gol' => $userData['pangkat_gol'] ?? '',
                         'user_pendidikan' => $userData['pendidikan'] ?? '',
                     ];
@@ -56,9 +56,6 @@ class LoginController extends Controller
                         $sessionData['user_nup'] = $userData['nup'];
                     }
                     
-                    if (isset($userData['TahunMasuk'])) {
-                        $sessionData['user_tahun_masuk'] = $userData['TahunMasuk'];
-                    }
 
                     session($sessionData);
 
