@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"SIOPLAS/models"
-
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -43,12 +42,10 @@ func ConnectDatabase() {
 		&models.Atasan{},
 		&models.Katimja{},
 		&models.Staff{},
-		&models.Login{},
+		&models.Login{}, 
 		&models.ResetPW{},
 		&models.Tugas{},
 		&models.DetailTugas{},
-		&models.TugasPenerima{},
-		&models.Notifikasi{},
 		&models.PengumpulanLaporan{},
 		&models.Laporan{},
 	)
