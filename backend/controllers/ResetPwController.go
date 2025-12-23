@@ -40,7 +40,7 @@ func ResetPassword(c *gin.Context) {
 
 	// Update password di tabel login
 	user.Password = string(hashedPW)
-	user.LastLogout = time.Now() 
+	user.LastLogout = time.Now()
 	if err := config.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update password"})
 		return
