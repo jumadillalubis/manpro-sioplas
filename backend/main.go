@@ -36,13 +36,25 @@ func main() {
 	// LOGIN
 	// -------------------------
 	r.POST("/api/login", controllers.Login)
+	r.POST("/api/logout", controllers.Logout)
 
 	// -------------------------
 	// GET Semua login
 	// -------------------------
 	r.GET("/api/logins", func(c *gin.Context) {
 		var logins []models.Login
-		if err := config.DB.Find(&logins).Error; err != nil {
+
+		// Filter berdasarkan jabatan jika ada query parameter
+		jabatan := c.Query("jabatan")
+		query := config.DB
+
+		if jabatan != "" {
+			query = query.Where("jabatan LIKE ?", "%"+jabatan+"%")
+		}
+
+		// Urutkan berdasarkan LastLogin terbaru (DESC) dan ID terbaru untuk memastikan data terbaru
+		// Gunakan fresh query tanpa cache untuk memastikan data real-time
+		if err := query.Order("last_login DESC, id DESC").Find(&logins).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 			return
 		}
@@ -137,6 +149,31 @@ func main() {
 		})
 	})
 
+	r.GET("/api/staff", func(c *gin.Context) {
+		var staffs []models.Staff
+		if err := config.DB.Find(&staffs).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   staffs,
+		})
+	})
+
+	r.GET("/api/staff/:id", func(c *gin.Context) {
+		var staff models.Staff
+		id := c.Param("id")
+		if err := config.DB.First(&staff, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Data staff tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"data":   staff,
+		})
+	})
+
 	// -------------------------
 	// CRUD Reset Password
 	// -------------------------
@@ -189,6 +226,36 @@ func main() {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Data berhasil dihapus"})
 	})
+
+	// -------------------------
+	// CRUD Tugas (Atasan membuat tugas, mengirim ke Katimja/Staff)
+	// -------------------------
+	// Atasan membuat tugas dan mengirim notifikasi
+	r.POST("/api/tugas", controllers.CreateTugas)
+
+	// Get semua tugas
+	r.GET("/api/tugas", controllers.GetAllTugas)
+
+	// Get tugas berdasarkan ID
+	r.GET("/api/tugas/:id", controllers.GetTugasByID)
+
+	// Get tugas berdasarkan pembuat (atasan)
+	r.GET("/api/tugas/pembuat/:pembuat", controllers.GetTugasByPembuat)
+
+	// Get tugas berdasarkan penerima (katimja/staff)
+	r.GET("/api/tugas/penerima/:penerima_id", controllers.GetTugasByPenerima)
+
+	// Update status tugas oleh penerima
+	r.PUT("/api/tugas/penerima/:id/status", controllers.UpdateStatusTugasPenerima)
+
+	// -------------------------
+	// Notifikasi
+	// -------------------------
+	// Get notifikasi berdasarkan penerima
+	r.GET("/api/notifikasi/penerima/:penerima_id", controllers.GetNotifikasiByPenerima)
+
+	// Mark notifikasi sebagai sudah dibaca
+	r.PUT("/api/notifikasi/:id/read", controllers.MarkNotifikasiRead)
 
 	// -------------------------
 	// Jalankan server
