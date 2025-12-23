@@ -31,14 +31,14 @@ func Login(c *gin.Context) {
 		// Cek apakah user sudah ada di tabel Login berdasarkan email
 		if err := config.DB.Where("email = ?", atasan.Email).First(&user).Error; err != nil {
 			// Jika belum ada, buat record baru
-			user = models.Login{
-				Nama:      atasan.Nama,
-				Jabatan:   atasan.Jabatan,
-				Email:     atasan.Email,
+		user = models.Login{
+			Nama:      atasan.Nama,
+			Jabatan:   atasan.Jabatan,
+			Email:     atasan.Email,
 				Nip:       atasan.Nip,
-				LastLogin: time.Now(),
-			}
-			config.DB.Create(&user)
+			LastLogin: time.Now(),
+		}
+		config.DB.Create(&user)
 		} else {
 			// Jika sudah ada, update semua field untuk sinkronisasi data dengan waktu sekarang
 			now := time.Now()
@@ -71,14 +71,14 @@ func Login(c *gin.Context) {
 		// Cek apakah user sudah ada di tabel Login berdasarkan email
 		if err := config.DB.Where("email = ?", katimja.Email).First(&user).Error; err != nil {
 			// Jika belum ada, buat record baru
-			user = models.Login{
-				Nama:      katimja.Nama,
-				Jabatan:   katimja.Jabatan,
-				Email:     katimja.Email,
+		user = models.Login{
+			Nama:      katimja.Nama,
+			Jabatan:   katimja.Jabatan,
+			Email:     katimja.Email,
 				Nip:       katimja.Nip,
-				LastLogin: time.Now(),
-			}
-			config.DB.Create(&user)
+			LastLogin: time.Now(),
+		}
+		config.DB.Create(&user)
 		} else {
 			// Jika sudah ada, update semua field untuk sinkronisasi data dengan waktu sekarang
 			now := time.Now()
@@ -111,14 +111,14 @@ func Login(c *gin.Context) {
 		// Cek apakah user sudah ada di tabel Login berdasarkan email
 		if err := config.DB.Where("email = ?", staff.Email).First(&user).Error; err != nil {
 			// Jika belum ada, buat record baru
-			user = models.Login{
-				Nama:      staff.Nama,
-				Jabatan:   staff.Jabatan,
-				Email:     staff.Email,
+		user = models.Login{
+			Nama:      staff.Nama,
+			Jabatan:   staff.Jabatan,
+			Email:     staff.Email,
 				Nup:       staff.Nup,
-				LastLogin: time.Now(),
-			}
-			config.DB.Create(&user)
+			LastLogin: time.Now(),
+		}
+		config.DB.Create(&user)
 		} else {
 			// Jika sudah ada, update semua field untuk sinkronisasi data dengan waktu sekarang
 			now := time.Now()
