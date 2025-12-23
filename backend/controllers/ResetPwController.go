@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"net/http"
-	"time"
 	"SIOPLAS/config"
 	"SIOPLAS/models"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -40,10 +40,45 @@ func ResetPassword(c *gin.Context) {
 
 	// Update password di tabel login
 	user.Password = string(hashedPW)
-	user.LastLogout = time.Now() // optional: catat waktu reset
+	user.LastLogout = time.Now() 
 	if err := config.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update password"})
 		return
+	}
+
+	// Update password di tabel yang sesuai (Atasan, Katimja, atau Staff)
+	// Password di tabel Atasan/Katimja/Staff disimpan sebagai plain text untuk konsistensi dengan sistem login
+	// Cek di tabel Atasan berdasarkan email
+	var atasan models.Atasan
+	if err := config.DB.Where("email = ?", user.Email).First(&atasan).Error; err == nil {
+		atasan.Password = req.NewPassword // Simpan password plain text untuk login
+		if err := config.DB.Save(&atasan).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update password di tabel Atasan"})
+			return
+		}
+	} else {
+		// Cek di tabel Katimja berdasarkan email
+		var katimja models.Katimja
+		if err := config.DB.Where("email = ?", user.Email).First(&katimja).Error; err == nil {
+			katimja.Password = req.NewPassword // Simpan password plain text untuk login
+			if err := config.DB.Save(&katimja).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update password di tabel Katimja"})
+				return
+			}
+		} else {
+			// Cek di tabel Staff berdasarkan email
+			var staff models.Staff
+			if err := config.DB.Where("email = ?", user.Email).First(&staff).Error; err == nil {
+				staff.Password = req.NewPassword // Simpan password plain text untuk login
+				if err := config.DB.Save(&staff).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update password di tabel Staff"})
+					return
+				}
+			} else {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User tidak ditemukan di tabel Atasan, Katimja, atau Staff"})
+				return
+			}
+		}
 	}
 
 	// Simpan record reset password di tabel reset_passwords
@@ -61,6 +96,6 @@ func ResetPassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "success",
-		"message": "Password berhasil diubah",
+		"message": "Password berhasil diubah dan dapat digunakan untuk login",
 	})
 }

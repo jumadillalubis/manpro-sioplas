@@ -12,3 +12,7 @@ type Staff struct {
 
 }
 
+func (Staff) TableName() string {
+	return "staffs"
+}
+
