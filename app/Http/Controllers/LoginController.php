@@ -9,7 +9,7 @@ class LoginController extends Controller
 {
     public function showLogin()
     {
-        return view('Auth.Login_Atasan');
+        return view('Auth.Login_SIOPLAS');
     }
 
     public function authenticate(Request $request)
