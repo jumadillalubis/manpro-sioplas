@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>@yield('title', 'SIOPLAS')</title>
+
+   @yield('styles')
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
@@ -97,13 +99,19 @@
   <li>
     <a href="{{ route('laporan.atasan') }}" class="{{ request()->routeIs('laporan.atasan') ? 'active' : '' }}">📁 Laporan</a>
   </li>
-    <li><a href="#">📝 Tugas</a></li>
+<li>
+  <a href="{{ route('tugas.index') }}"
+     class="{{ request()->routeIs('tugas.*') ? 'active' : '' }}">
+     📝 Tugas
+  </a>
+</li>
+
 </ul>
 
     </div>
 
     <div class="sidebar-bottom">
-      <a href="{{ route('settings.atasan') }}">
+      <a href="{{ route('atasan.settings') }}">
         <img src="https://img.icons8.com/?size=100&id=364&format=png" width="18" alt="settings" />
         Settings
       </a>

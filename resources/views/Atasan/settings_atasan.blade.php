@@ -3,79 +3,114 @@
 @section('title', 'Pengaturan Profil - SIOPLAS')
 
 @section('content')
-<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
 
-  <!-- Judul -->
-  <div>
-    <h2 style="font-size: 22px; font-weight: 600; margin-bottom: 30px;">Pengaturan Profil</h2>
-  </div>
+<!-- Judul -->
+<h2 style="font-size: 22px; font-weight: 600; margin-bottom: 30px;">
+  Pengaturan Profil
+</h2>
 
-</div>
+<!-- Wrapper tengah -->
+<div style="
+  display: flex;
+  justify-content: center;
+">
 
-<!-- Konten utama -->
-<div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap;">
+  <!-- Konten utama -->
+  <div style="
+    width: 100%;
+    max-width: 600px;
+  ">
 
-  <!-- Kiri -->
-  <div style="flex: 1; min-width: 350px; max-width: 600px;">
+    <!-- PROFIL -->
+    <!-- PROFIL -->
+<div style="
+  text-align: center;
+  margin-bottom: 40px;
+">
+      <img src="https://cdn-icons-png.flaticon.com/512/4140/4140048.png"
+           alt="Avatar"
+           style="
+             width: 110px;
+             height: 110px;
+             border-radius: 50%;
+             margin-bottom: 12px;
+           ">
 
-    <!-- Profil -->
-    <div style="text-align: center; margin-bottom: 40px;">
-      <img src="https://cdn-icons-png.flaticon.com/512/4140/4140048.png" 
-           alt="Avatar" 
-           style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 10px;">
-      <h3 style="margin: 0;">Budi</h3>
-      <p style="margin: 4px 0 0; color: gray; font-size: 14px;">081234567890</p>
-      <p style="margin: 0; color: gray; font-size: 14px;">Budi@kipm.go.id</p>
+      <h3 style="margin: 0; font-weight: 600;">Budi</h3>
+      <p style="margin: 6px 0 0; color: #6B7280; font-size: 14px;">
+        081234567890
+      </p>
+      <p style="margin: 2px 0 0; color: #6B7280; font-size: 14px;">
+        Budi@kipm.go.id
+      </p>
     </div>
 
-    <!-- Notifikasi -->
+    <!-- NOTIFIKASI -->
     <div style="margin-bottom: 30px;">
-      <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">Notifikasi</h4>
+      <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">
+        Notifikasi
+      </h4>
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <p style="margin: 0;">Pemberitahuan Pengingat Laporan</p>
-        <label class="switch" style="position: relative; display: inline-block; width: 38px; height: 20px;">
-          <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
-          <span class="slider round"></span>
+        <label class="switch" style="position: relative; width: 38px; height: 20px;">
+          <input type="checkbox">
+          <span class="slider"></span>
         </label>
       </div>
     </div>
 
-    <!-- Preferensi Pengingat -->
+    <!-- PREFERENSI -->
     <div style="margin-bottom: 30px;">
-      <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">Preferensi Pengingat</h4>
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <p style="margin: 0;">Harian</p>
-        <span style="font-size: 18px;">⌄</span>
-      </div>
-    </div>
+  <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 4px;">
+    Preferensi Pengingat
+  </h4>
+  <p style="
+    margin: 0;
+    font-size: 14px;
+    color: #000000;
+  ">
+    Harian
+  </p>
+</div>
 
-    <!-- Bahasa -->
+    <!-- BAHASA -->
     <div style="margin-bottom: 30px;">
-      <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">Bahasa</h4>
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <p style="margin: 0;">Bahasa Indonesia</p>
-        <span style="font-size: 18px;">⌄</span>
-      </div>
-    </div>
+  <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 4px;">
+    Bahasa
+  </h4>
+  <p style="
+    margin: 0;
+    font-size: 14px;
+    color: #000000;
+  ">
+    Bahasa Indonesia
+  </p>
+</div>
 
-    <!-- Password -->
+    <!-- PASSWORD -->
     <div style="margin-bottom: 50px;">
-      <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">Password</h4>
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <a href="#" style="text-decoration: underline; color: black;">Ubah Password</a>
-        <span style="font-size: 18px;">›</span>
+      <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">
+        Password
+      </h4>
+      <div style="display: flex; justify-content: space-between;">
+        <a href="{{ route('atasan.ubah.password') }}"
+   style="text-decoration: underline; color: black;">
+  Ubah Password
+</a>
+
+        <span>›</span>
       </div>
     </div>
 
-    <!-- Tombol keluar -->
+    <!-- LOGOUT -->
     <div style="display: flex; justify-content: center;">
       <button style="
-        width: 250px;
+        width: 260px;
         background-color: #C62828;
         color: white;
         border: none;
-        padding: 12px 0;
-        border-radius: 8px;
+        padding: 12px;
+        border-radius: 10px;
         font-size: 15px;
         font-weight: 500;
         cursor: pointer;
@@ -87,23 +122,34 @@
   </div>
 </div>
 
-<!-- Style toggle -->
+<!-- Toggle style -->
 <style>
-.switch input { opacity: 0; width: 0; height: 0; }
+.switch input { display: none; }
 .slider {
-  position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #ccc; transition: .4s; border-radius: 34px;
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  border-radius: 20px;
+  transition: .3s;
 }
-.slider:before {
-  position: absolute; content: ""; height: 14px; width: 14px;
-  left: 3px; bottom: 3px; background-color: white;
-  transition: .4s; border-radius: 50%;
+.slider::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: .3s;
 }
 input:checked + .slider {
   background-color: #3DB9E3;
 }
-input:checked + .slider:before {
+input:checked + .slider::before {
   transform: translateX(18px);
 }
 </style>
+
 @endsection

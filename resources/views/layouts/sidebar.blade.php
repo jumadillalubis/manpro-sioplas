@@ -5,8 +5,12 @@
     </div>
     <ul class="menu">
       <li><a href="#" class="active">📊 Dashboard</a></li>
-      <li><a href="#">📁 Laporan</a></li>
-      <li><a href="#">📝 Tugas</a></li>
+      <li>
+  <a href="{{ route('laporan.index') }}">📁 Laporan</a>
+</li>
+    <li>
+  <a href="{{ route('tugas.index') }}">📝 Tugas</a>
+</li>
     </ul>
   </div>
 

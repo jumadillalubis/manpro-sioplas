@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\AtasanController;
+use App\Http\Controllers\LaporanAtasanController;
+use App\Http\Controllers\TugasController;
 use App\Http\Controllers\KatimjaController;
 use App\Http\Controllers\StaffController;
 
@@ -17,6 +19,47 @@ use App\Http\Controllers\StaffController;
 |
 */
 
+//Beranda Atasan
+Route::get('/beranda-atasan', [AtasanController::class, 'beranda'])->name('beranda.atasan');
+
+// Laporan Atasan
+Route::prefix('atasan')->group(function () {
+    Route::get('/laporan', [LaporanAtasanController::class, 'index'])->name('laporan.atasan');
+    Route::get('/laporan/{id}', [LaporanAtasanController::class, 'show'])->name('laporan.detail');
+    Route::post('/laporan/{id}/verifikasi', [LaporanAtasanController::class, 'verifikasi'])->name('laporan.verifikasi');
+    Route::delete('/laporan/{id}', [LaporanAtasanController::class, 'destroy'])->name('laporan.hapus');
+});
+
+// Notif Atasan
+Route::get('/notifikasi-atasan', [AtasanController::class, 'notifikasi'])->name('notifikasi.atasan');
+
+// halaman settings Atasan
+    Route::get('/atasan/settings', [AtasanController::class, 'settings'])
+        ->name('atasan.settings');
+
+    // halaman ubah password Atasan
+    Route::get('/atasan/ubah-password', [AtasanController::class, 'ubahPassword'])
+        ->name('atasan.ubah.password');
+
+    // proses update password Atasan
+    Route::post('/atasan/update-password', [AtasanController::class, 'updatePassword'])
+        ->name('atasan.update.password');
+
+    // tugas atasan
+Route::get('/tugas', [TugasController::class, 'index'])->name('tugas.index');
+Route::get('/tugas/create', function () {
+    return view('Atasan.tugas_create');
+})->name('tugas.create');
+Route::get('/tugas/{id}', [TugasController::class, 'show'])->name('tugas.show');
+Route::post('/tugas/{id}/approve', [TugasController::class, 'approve'])->name('tugas.approve');
+
+Route::get('/tugas/{id}/lihat', [TugasController::class, 'lihat'])
+    ->name('tugas.lihat');
+
+Route::post('/tugas/{id}/respon', [TugasController::class, 'respon'])
+    ->name('tugas.respon');
+
+        
 // Landing Page
 Route::get('/', function () {
     return view('Auth.landing_page');
