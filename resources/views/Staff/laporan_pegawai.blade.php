@@ -3,25 +3,9 @@
 @section('content')
     <div class="p-6 bg-white">
 
-        {{-- FILTER TAHUN --}}
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-800">Laporan Perjanjian Kinerja</h2>
-            
-            <div class="flex items-center gap-3">
-                <label for="filterTahun" class="text-sm font-medium text-gray-700">Filter Tahun:</label>
-                <select id="filterTahun" onchange="filterByYear(this.value)" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-white cursor-pointer">
-                    <option value="2025" selected>2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2022">2022</option>
-                    <option value="2021">2021</option>
-                </select>
-            </div>
-        </div>
-
         {{-- HEADER BIRU --}}
-        <div class="w-full bg-cyan-400 px-6 py-4 mb-6 rounded-lg">
-            <h1 id="headerTahun" class="text-white text-lg font-semibold uppercase tracking-wide text-center">
+        <div class="w-full bg-cyan-400 px-6 py-4 mb-6">
+            <h1 class="text-white text-lg font-semibold uppercase tracking-wide text-center">
                 PERJANJIAN KINERJA TAHUN 2025 BADAN MUTU KKP PEKANBARU
             </h1>
         </div>
@@ -127,36 +111,6 @@
         document.getElementById('closeModal').onclick = () => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-        }
-
-        // Filter by Year Function
-        function filterByYear(year) {
-            // Update header text
-            document.getElementById('headerTahun').textContent = 
-                'PERJANJIAN KINERJA TAHUN ' + year + ' BADAN MUTU KKP PEKANBARU';
-            
-            // Show notification
-            showFilterNotification('Filter diterapkan untuk tahun ' + year);
-            
-            // Here you can add AJAX call to fetch data based on year
-            // For now it just updates the header
-            console.log('Filtering data for year:', year);
-        }
-
-        // Show notification function
-        function showFilterNotification(message) {
-            // Create notification element
-            const notif = document.createElement('div');
-            notif.className = 'fixed top-4 right-4 bg-cyan-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
-            notif.innerHTML = '<span>✅</span> ' + message;
-            document.body.appendChild(notif);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                notif.style.opacity = '0';
-                notif.style.transition = 'opacity 0.3s';
-                setTimeout(() => notif.remove(), 300);
-            }, 2000);
         }
     </script>
 @endsection

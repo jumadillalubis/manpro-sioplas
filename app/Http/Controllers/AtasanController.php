@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Atasan;
 use App\Models\Tugas;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 
 class AtasanController extends Controller
 {
@@ -30,11 +30,9 @@ class AtasanController extends Controller
             'password' => 'required'
         ]);
 
-        $atasan = Atasan::where('nama', $request->username)
-                        ->where('password', $request->password)
-                        ->first();
+        $atasan = Atasan::where('nama', $request->username)->first();
 
-        if ($atasan) {
+        if ($atasan && Hash::check($request->password, $atasan->password)) {
             session([
                 'atasan_id' => $atasan->id,
                 'atasan_nama' => $atasan->nama,
@@ -53,10 +51,11 @@ class AtasanController extends Controller
         return back()->with('error', 'Username atau password salah!');
     }
 
+    // 🔴 LOGOUT (AMAN UNTUK GET)
     public function logout()
     {
         session()->flush();
-        return redirect()->route('login');
+        return redirect()->route('login.atasan');
     }
 
     /* =====================
@@ -66,6 +65,11 @@ class AtasanController extends Controller
     public function beranda()
     {
         return view('Atasan.beranda_atasan');
+    }
+
+    public function createTugas()
+    {
+        return view('Atasan.tugas_create');
     }
 
     public function storeTugas(Request $request)
@@ -92,6 +96,16 @@ class AtasanController extends Controller
         return back()->with('success', 'Tugas berhasil dibuat');
     }
 
+    /* =====================
+     * LAPORAN
+     * ===================== */
+
+    // ✅ INI YANG KEMARIN BIKIN ERROR
+    public function laporan()
+    {
+        return view('Atasan.laporan_atasan');
+    }
+
     public function notifikasi()
     {
         return view('Atasan.notifikasi_atasan');
@@ -101,19 +115,16 @@ class AtasanController extends Controller
      * SETTINGS & PASSWORD
      * ===================== */
 
-    // halaman settings
     public function settings()
     {
         return view('Atasan.settings_atasan');
     }
 
-    // halaman ubah password
     public function ubahPassword()
     {
         return view('Atasan.ubah_password');
     }
 
-    // proses update password
     public function updatePassword(Request $request)
     {
         $request->validate([
@@ -125,26 +136,20 @@ class AtasanController extends Controller
         $atasan = Atasan::find(session('atasan_id'));
 
         if (!$atasan) {
-            return redirect()->route('login');
+            return redirect()->route('login.atasan');
         }
 
         // cek password lama
-        if ($atasan->password !== $request->current_password) {
-            return back()->withErrors(['Kata sandi saat ini salah']);
+        if (!Hash::check($request->current_password, $atasan->password)) {
+            return back()->withErrors(['current_password' => 'Password lama salah']);
         }
 
         // update password
-        $atasan->password = $request->new_password;
+        $atasan->password = Hash::make($request->new_password);
         $atasan->save();
 
         return redirect()
             ->route('atasan.settings')
             ->with('success', 'Password berhasil diubah');
     }
-
-    public function createTugas()
-{
-    return view('Atasan.tugas_create');
 }
-}
-

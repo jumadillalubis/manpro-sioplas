@@ -1,139 +1,174 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beranda Staff - SIOPLAS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
-        }
-        
-        .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .container-custom {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            margin-bottom: 20px;
-        }
-        
-        .welcome-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .stat-card {
-            text-align: center;
-            padding: 25px;
-            border-radius: 10px;
-            background: white;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-        }
-        
-        .stat-card i {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .btn-logout {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-        }
-        
-        .btn-logout:hover {
-            background: rgba(255,255,255,0.3);
-            color: white;
-        }
-    </style>
-</head>
-<body>
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div class="container-fluid d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="bi bi-speedometer2"></i> SIOPLAS - Staff Dashboard</h4>
-            <div class="d-flex align-items-center gap-3">
-                <span><i class="bi bi-person-circle"></i> {{ session('user_nama', 'Staff') }}</span>
-                <a href="{{ route('logout') }}" class="btn btn-logout btn-sm">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </a>
-            </div>
-        </div>
-    </nav>
+@extends('layouts.app')
 
-    <!-- Main Content -->
-    <div class="container-custom">
-        <!-- Welcome Card -->
-        <div class="card welcome-card">
-            <h2><i class="bi bi-emoji-smile"></i> Selamat Datang, {{ session('user_nama', 'Staff') }}!</h2>
-            <p class="mb-0">Jabatan: {{ session('user_jabatan', 'Staff') }}</p>
-        </div>
+@section('content')
+    <div class="p-8 bg-gray-50 min-h-screen">
 
-        <!-- Stats Cards -->
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <i class="bi bi-file-text text-primary"></i>
-                    <h3>0</h3>
-                    <p class="text-muted mb-0">Total Laporan</p>
+        {{-- HEADER --}}
+        <h1 class="text-2xl font-semibold text-gray-800">Dashboard</h1>
+        <p class="text-gray-500 mb-6">Selamat Datang, <span class="font-medium">Budi Susanto</span></p>
+
+        {{-- RINGKASAN + DEADLINE --}}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+
+            {{-- Ringkasan Aktivitas --}}
+            <div class="lg:col-span-2">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4">Ringkasan Aktivitas Pegawai</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-100 rounded-xl p-6">
+                        <p class="text-sm text-gray-500 mb-1">Total Laporan Terkirim</p>
+                        <p class="text-2xl font-bold text-gray-800">8 Laporan</p>
+                    </div>
+
+                    <div class="bg-gray-100 rounded-xl p-6">
+                        <p class="text-sm text-gray-500 mb-1">Total Tugas Terkirim</p>
+                        <p class="text-2xl font-bold text-gray-800">15 Laporan</p>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <i class="bi bi-check-circle text-success"></i>
-                    <h3>0</h3>
-                    <p class="text-muted mb-0">Laporan Disetujui</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <i class="bi bi-clock-history text-warning"></i>
-                    <h3>0</h3>
-                    <p class="text-muted mb-0">Menunggu Persetujuan</p>
+
+            {{-- Notepad --}}
+            <div class="bg-gradient-to-br from-cyan-400 to-sky-500 rounded-xl p-6 text-white shadow-lg">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>📝</span> Catatan Pribadi
+                </h2>
+
+                <div class="space-y-3">
+                    <textarea id="notepad-content"
+                        class="w-full h-32 p-3 rounded-lg text-gray-800 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-600 placeholder-gray-400"
+                        placeholder="Tulis catatan Anda di sini..."></textarea>
+
+                    <div class="flex gap-2">
+                        <button onclick="saveNote()"
+                            class="flex-1 bg-white text-cyan-600 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-50 transition-colors text-sm flex items-center justify-center gap-2">
+                            <span>💾</span> Simpan
+                        </button>
+                        <button onclick="clearNote()"
+                            class="bg-white/20 text-white font-semibold py-2 px-4 rounded-lg hover:bg-white/30 transition-colors text-sm flex items-center justify-center gap-2">
+                            <span>🗑️</span> Hapus
+                        </button>
+                    </div>
+
+                    <p id="notepad-status" class="text-xs text-cyan-100 text-center hidden"></p>
                 </div>
             </div>
         </div>
 
-        <!-- Info Card -->
-        <div class="card">
-            <h5 class="mb-3"><i class="bi bi-info-circle"></i> Informasi Akun</h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Nama:</strong> {{ session('user_nama', '-') }}</p>
-                    <p><strong>Email:</strong> {{ session('user_email', '-') }}</p>
-                    <p><strong>Jabatan:</strong> {{ session('user_jabatan', '-') }}</p>
-                </div>
-                <div class="col-md-6">
-                    <p><strong>NUP:</strong> {{ session('user_nup', '-') }}</p>
-                    <p><strong>Pangkat/Gol:</strong> {{ session('user_pangkat_gol', '-') }}</p>
-                    <p><strong>Pendidikan:</strong> {{ session('user_pendidikan', '-') }}</p>
-                </div>
+        {{-- Notepad Script --}}
+        <script>
+            // Load saved note on page load
+            document.addEventListener('DOMContentLoaded', function () {
+                const savedNote = localStorage.getItem('staff_notepad');
+                if (savedNote) {
+                    document.getElementById('notepad-content').value = savedNote;
+                }
+            });
+
+            function saveNote() {
+                const noteContent = document.getElementById('notepad-content').value;
+                localStorage.setItem('staff_notepad', noteContent);
+                showStatus('✅ Catatan tersimpan!');
+            }
+
+            function clearNote() {
+                if (confirm('Apakah Anda yakin ingin menghapus catatan?')) {
+                    document.getElementById('notepad-content').value = '';
+                    localStorage.removeItem('staff_notepad');
+                    showStatus('🗑️ Catatan dihapus!');
+                }
+            }
+
+            function showStatus(message) {
+                const statusEl = document.getElementById('notepad-status');
+                statusEl.textContent = message;
+                statusEl.classList.remove('hidden');
+                setTimeout(() => {
+                    statusEl.classList.add('hidden');
+                }, 2000);
+            }
+        </script>
+
+        {{-- DAFTAR TUGAS --}}
+        <div class="bg-gray-100 rounded-xl p-6 shadow-sm">
+
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-700">Daftar Tugas</h2>
+
+                {{-- Filter Bulan --}}
+                <select class="bg-white border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none">
+                    <option>October</option>
+                    <option>September</option>
+                    <option>August</option>
+                </select>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-600">
+                    <thead class="text-xs text-gray-500 uppercase border-b">
+                        <tr>
+                            <th class="py-3 px-4">Tugas</th>
+                            <th class="py-3 px-4">Deadline</th>
+                            <th class="py-3 px-4">Type</th>
+                            <th class="py-3 px-4">ID Tugas</th>
+                            <th class="py-3 px-4">Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y">
+                        {{-- Accepted --}}
+                        <tr>
+                            <td class="py-4 px-4 font-medium text-gray-800">Tinjau SOP Baru</td>
+                            <td class="py-4 px-4">22 Juli 2024</td>
+                            <td class="py-4 px-4">
+                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-200 text-xs">
+                                    👤 Personal
+                                </span>
+                            </td>
+                            <td class="py-4 px-4">T00128</td>
+                            <td class="py-4 px-4">
+                                <span class="px-3 py-1 text-xs rounded-full bg-green-500 text-white">
+                                    Accepted
+                                </span>
+                            </td>
+                        </tr>
+
+                        {{-- Pending --}}
+                        <tr>
+                            <td class="py-4 px-4 font-medium text-gray-800">Evaluasi Kinerja Tim</td>
+                            <td class="py-4 px-4">25 Juli 2024</td>
+                            <td class="py-4 px-4">
+                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-200 text-xs">
+                                    👥 Team
+                                </span>
+                            </td>
+                            <td class="py-4 px-4">T00125</td>
+                            <td class="py-4 px-4">
+                                <span class="px-3 py-1 text-xs rounded-full bg-yellow-400 text-white">
+                                    Pending
+                                </span>
+                            </td>
+                        </tr>
+
+                        {{-- Rejected --}}
+                        <tr>
+                            <td class="py-4 px-4 font-medium text-gray-800">Rapat Koordinasi Proyek</td>
+                            <td class="py-4 px-4">28 Juli 2024</td>
+                            <td class="py-4 px-4">
+                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-200 text-xs">
+                                    👤 Personal
+                                </span>
+                            </td>
+                            <td class="py-4 px-4">T00132</td>
+                            <td class="py-4 px-4">
+                                <span class="px-3 py-1 text-xs rounded-full bg-red-500 text-white">
+                                    Rejected
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
+
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+@endsection

@@ -14,7 +14,8 @@ class LaporanAtasanController extends Controller
     public function index()
     {
         // Ambil semua laporan dengan relasi staff
-        $laporan = Laporan::with('staff')->latest()->get();
+        $laporan = Laporan::with('staff')->get();
+
 
         return view('atasan.laporan_atasan', compact('laporan'));
     }
