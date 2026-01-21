@@ -8,44 +8,46 @@ use Illuminate\Support\Collection;
 class NotificationController extends Controller
 {
     /**
-     * Ambil notifikasi (dummy / sementara)
+     * Ambil notifikasi dari Go Backend
      */
     public static function getNotifications()
     {
         $jabatan = strtolower(session('user_jabatan', ''));
         $userId  = session('user_id');
 
-        $notifications = collect([
-            [
-                'id' => 1,
-                'role' => 'atasan',
-                'title' => 'Laporan Baru',
-                'message' => 'Ada laporan masuk dari staff',
-                'url' => route('laporan.atasan'),
-                'is_read' => false,
-            ],
-            [
-                'id' => 2,
-                'role' => 'katimja',
-                'title' => 'Tugas Perlu Review',
-                'message' => 'Ada tugas yang perlu dicek',
-                'url' => route('tugas.katimja'),
-                'is_read' => false,
-            ],
-            [
-                'id' => 3,
-                'role' => 'staff',
-                'title' => 'Tugas Baru',
-                'message' => 'Kamu mendapatkan tugas baru',
-                'url' => route('tugas.staff'),
-                'is_read' => true,
-            ],
-        ]);
+        // Tentukan prefix ID sesuai logic notifikasi di Go
+        $prefix = 'staff';
+        if (str_contains($jabatan, 'atasan') || str_contains($jabatan, 'kepala dinas')) {
+            $prefix = 'atasan';
+        } elseif (str_contains($jabatan, 'katimja') || str_contains($jabatan, 'kepala tim')) {
+            $prefix = 'katimja';
+        }
 
-        // Filter sesuai jabatan
-        return $notifications->filter(function ($notif) use ($jabatan) {
-            return str_contains($jabatan, $notif['role']);
-        });
+        $penerimaId = "{$prefix}-{$userId}";
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/notifications', [
+                'penerima_id' => $penerimaId
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json()['data'] ?? [];
+                
+                return collect($data)->map(function ($item) {
+                    return [
+                        'id' => $item['id'],
+                        'title' => $item['judul'], 
+                        'message' => $item['pesan'], 
+                        'role' => 'user', 
+                        'is_read' => ($item['status'] ?? 'unread') !== 'unread',
+                        'url' => '#' 
+                    ];
+                });
+            }
+        } catch (\Exception $e) {
+        }
+
+        return collect([]);
     }
 
     /**

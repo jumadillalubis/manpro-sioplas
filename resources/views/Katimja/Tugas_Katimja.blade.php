@@ -13,56 +13,38 @@
                     <tr>
                         <th class="px-4 py-2 text-left">ID Tugas</th>
                         <th class="px-4 py-2 text-left">Tugas</th>
+                        <th class="px-4 py-2 text-left">Tanggal Buat</th>
                         <th class="px-4 py-2 text-left">Deadline</th>
                         <th class="px-4 py-2 text-left">Status</th>
                         <th class="px-4 py-2 text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Example rows, you can replace it with dynamic data -->
+                    @forelse($tugas as $item)
                     <tr class="border-b hover:bg-gray-100">
-                        <td class="px-4 py-3">T00127</td>
-                        <td class="px-4 py-3">Revisi Laporan Mutu</td>
-                        <td class="px-4 py-3">20 Jul 2024</td>
+                        <td class="px-4 py-3">{{ $item['id'] }}</td>
+                        <td class="px-4 py-3">{{ $item['judul'] }}</td>
+                        <td class="px-4 py-3">{{ $item['tanggal_buat'] }}</td>
+                        <td class="px-4 py-3 text-red-500">{{ $item['deadline'] }}</td>
                         <td class="px-4 py-3">
-                            <span class="badge bg-green-500 text-white px-3 py-1 rounded-full">Completed</span>
+                            <span class="badge bg-yellow-500 text-white px-3 py-1 rounded-full">{{ $item['status'] }}</span>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <a href="{{ route('tugas.show', ['id' => 1]) }}" class="text-blue-500 hover:text-blue-700">Lihat
-                                Detail</a>
+                            <a href="{{ route('katimja.tugas.show', $item['id']) }}" class="text-blue-500 hover:text-blue-700">Lihat Detail</a>
                         </td>
                     </tr>
-                    <tr class="border-b hover:bg-gray-100">
-                        <td class="px-4 py-3">T00128</td>
-                        <td class="px-4 py-3">Tinjau SOP Baru</td>
-                        <td class="px-4 py-3">22 Jul 2024</td>
-                        <td class="px-4 py-3">
-                            <span class="badge bg-yellow-500 text-white px-3 py-1 rounded-full">Pending</span>
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <a href="{{ route('tugas.show', ['id' => 2]) }}" class="text-blue-500 hover:text-blue-700">Lihat
-                                Detail</a>
-                        </td>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="px-4 py-3 text-center text-gray-500">Belum ada tugas.</td>
                     </tr>
-                    <tr class="border-b hover:bg-gray-100">
-                        <td class="px-4 py-3">T00129</td>
-                        <td class="px-4 py-3">Evaluasi Kinerja Tim</td>
-                        <td class="px-4 py-3">25 Jul 2024</td>
-                        <td class="px-4 py-3">
-                            <span class="badge bg-red-500 text-white px-3 py-1 rounded-full">Rejected</span>
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <a href="{{ route('tugas.show', ['id' => 3]) }}" class="text-blue-500 hover:text-blue-700">Lihat
-                                Detail</a>
-                        </td>
-                    </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
 
         <!-- Tombol untuk Buat Tugas Baru -->
         <div class="mt-6">
-            <a href="{{ route('tugas.create') }}"
+            <a href="{{ route('katimja.tugas.create') }}"
                 class="inline-block px-6 py-2 bg-green-600 text-white rounded-full shadow-md hover:bg-green-700">Buat Tugas
                 Baru</a>
         </div>

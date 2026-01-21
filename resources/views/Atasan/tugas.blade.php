@@ -14,6 +14,11 @@
     margin-bottom: 40px;
   }
 
+  .action-center {
+  display: flex;
+  justify-content: align-items;
+  margin: 60px 0;
+}
   .tugas-item {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -59,10 +64,15 @@
 <div class="tugas-wrapper">
   <div class="tugas-title">Daftar Tugas</div>
 
+<!-- BUTTON -->
+<div class="action-center">
+  <a href="{{ route('tugas.create') }}" class="btn-task">Buat Tugas</a>
+</div>
+
   @foreach ($tugas as $item)
     <div class="tugas-item">
       <div class="tugas-info">
-        <small>Batas Waktu: {{ $item['batas_waktu'] }}</small>
+        <small>Tanggal Buat: {{ $item['tanggal_buat'] }}</small>
         <h4>{{ $item['judul'] }}</h4>
         <p>Ke: {{ $item['kepada'] }}</p>
       </div>

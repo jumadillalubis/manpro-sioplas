@@ -36,16 +36,17 @@
 
                         @forelse ($tugas as $item)
                             <tr>
-                                <td class="px-6 py-4 text-sm text-gray-500">{{ $item['id'] }}</td>
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $item['judul'] }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500">{{ $item['type'] }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500">{{ $item['batas_waktu'] }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500">{{ $item->id }}</td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $item->judul }}</td>
+                                {{-- 'type' is not in the database schema, replacing with static or removed --}}
+                                <td class="px-6 py-4 text-sm text-gray-500">Tugas</td> 
+                                <td class="px-6 py-4 text-sm text-gray-500">{{ \Carbon\Carbon::parse($item->tenggat)->translatedFormat('d F Y') }}</td>
 
                                 <td class="px-6 py-4">
-                                    @if ($item['status'] === 'Completed')
+                                    @if ($item->status === 'Selesai' || $item->status === 'Completed')
                                         <span
-                                            class="px-3 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">Completed</span>
-                                    @elseif ($item['status'] === 'Rejected')
+                                            class="px-3 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">Selesai</span>
+                                    @elseif ($item->status === 'Rejected')
                                         <span
                                             class="px-3 py-1 text-xs font-semibold bg-red-100 text-red-800 rounded-full">Rejected</span>
                                     @else
@@ -55,7 +56,7 @@
                                 </td>
 
                                 <td class="px-6 py-4 text-sm font-medium">
-                                    <a href="{{ route('tugas.detail', $item['id']) }}" class="text-blue-600 hover:underline">
+                                    <a href="{{ route('tugas.detail', $item->id) }}" class="text-blue-600 hover:underline">
                                         Lihat Detail
                                     </a>
                                 </td>

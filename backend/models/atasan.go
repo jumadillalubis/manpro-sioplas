@@ -10,3 +10,7 @@ type Atasan struct {
 	PangkatGol string `json:"pangkat_gol"`
 	Pendidikan string `json:"pendidikan"`
 }
+
+func (Atasan) TableName() string {
+	return "atasans"
+}

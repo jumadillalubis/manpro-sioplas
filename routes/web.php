@@ -22,6 +22,9 @@ Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
 Route::post('/login', [LoginController::class, 'authenticate'])->name('login.post');
 Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
 
+Route::get('/reset-password', [App\Http\Controllers\ResetPasswordController::class, 'showResetForm'])->name('reset-password');
+Route::post('/reset-password', [App\Http\Controllers\ResetPasswordController::class, 'processReset'])->name('reset-password.process');
+
 /*
 |--------------------------------------------------------------------------
 | REDIRECT BERANDA (LEGACY)
@@ -84,9 +87,9 @@ Route::prefix('atasan')->group(function () {
 */
 Route::get('/tugas', [TugasController::class, 'index'])->name('tugas.index');
 
-Route::get('/tugas/create', function () {
-    return view('Atasan.tugas_create');
-})->name('tugas.create');
+Route::post('/tugas', [TugasController::class, 'store'])->name('tugas.store');
+
+Route::get('/tugas/create', [TugasController::class, 'create'])->name('tugas.create');
 
 Route::get('/tugas/{id}', [TugasController::class, 'show'])->name('tugas.show');
 
@@ -123,6 +126,15 @@ Route::prefix('katimja')->group(function () {
 
     Route::get('/tugas/{id}', [KatimjaController::class, 'showTugas'])
         ->name('katimja.tugas.show');
+
+    Route::post('/tugas/{id}/respon', [KatimjaController::class, 'respon'])
+        ->name('katimja.tugas.respon');
+
+    Route::post('/tugas/{id}/assign', [KatimjaController::class, 'assign'])
+        ->name('katimja.tugas.assign');
+
+    Route::post('/laporan/upload', [KatimjaController::class, 'uploadLaporan'])
+        ->name('katimja.laporan.upload');
 
 });
 
@@ -172,3 +184,5 @@ Route::post('/notification/read/{id}', function ($id) {
     // nanti kalau pakai DB → update is_read
     return back();
 })->name('notification.read');
+
+Route::post('/ai/summarize', [App\Http\Controllers\AiSummrizeController::class, 'summarize'])->name('ai.summarize');

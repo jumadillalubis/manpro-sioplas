@@ -7,32 +7,35 @@
         <h4 class="text-2xl font-semibold text-gray-800 mb-6">Buat Tugas Baru</h4>
 
         <!-- Form untuk Buat Tugas Baru -->
-        <form action="{{ route('tugas.store') }}" method="POST">
+        <form action="{{ route('katimja.tugas.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="mb-4">
-                <label for="recipient" class="text-sm font-semibold text-gray-700">Penerima Tugas</label>
-                <select name="recipient" id="recipient" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg">
+                <label for="penerima" class="text-sm font-semibold text-gray-700">Penerima Tugas</label>
+                <select name="penerima" id="penerima" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg">
                     <option value="">Pilih Karyawan</option>
-                    <!-- Populate the list of employees dynamically -->
-                    <option value="budi">Budi Santoso</option>
-                    <option value="agus">Agus Subrata</option>
-                    <option value="rini">Rini Rina</option>
+                    @foreach($staff as $s)
+                        <option value="{{ $s->nama }}">{{ $s->nama }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="mb-4">
-                <label for="task-title" class="text-sm font-semibold text-gray-700">Judul Tugas</label>
-                <input type="text" name="task-title" id="task-title"
+                <label for="judul" class="text-sm font-semibold text-gray-700">Judul Tugas</label>
+                <input type="text" name="judul" id="judul"
                     class="block w-full mt-2 p-3 border border-gray-300 rounded-lg" required>
             </div>
             <div class="mb-4">
-                <label for="task-desc" class="text-sm font-semibold text-gray-700">Deskripsi Tugas</label>
-                <textarea name="task-desc" id="task-desc" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg"
+                <label for="deskripsi" class="text-sm font-semibold text-gray-700">Deskripsi Tugas</label>
+                <textarea name="deskripsi" id="deskripsi" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg"
                     required></textarea>
             </div>
             <div class="mb-4">
-                <label for="deadline" class="text-sm font-semibold text-gray-700">Tanggal Deadline</label>
-                <input type="date" name="deadline" id="deadline"
+                <label for="tenggat" class="text-sm font-semibold text-gray-700">Tanggal Deadline</label>
+                <input type="date" name="tenggat" id="tenggat"
                     class="block w-full mt-2 p-3 border border-gray-300 rounded-lg" required>
+            </div>
+            <div class="mb-4">
+                <label for="file" class="text-sm font-semibold text-gray-700">Lampiran (Opsional)</label>
+                <input type="file" name="file" id="file" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg">
             </div>
             <button type="submit"
                 class="mt-4 inline-block px-6 py-2 bg-green-600 text-white rounded-full shadow-md hover:bg-green-700">Kirim

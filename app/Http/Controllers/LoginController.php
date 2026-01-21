@@ -35,14 +35,15 @@ class LoginController extends Controller
                 
                 if ($data['status'] === 'success') {
                     $userData = $data['data'];
-                    $jabatan = $data['jabatan'] ?? $userData['jabatan'] ?? ''; // Jabatan dari database sebagai patokan
+                    $jabatan = $userData['jabatan'] ?? ''; 
                     
                     // Simpan data ke session berdasarkan jabatan
                     $sessionData = [
-                        'user_id' => $userData['id'],
+                        'user_id' => $data['user_id'] ?? $userData['id'], 
                         'user_nama' => $userData['nama'],
                         'user_email' => $userData['email'] ?? '',
-                        'user_jabatan' => $jabatan, // Jabatan dari database sebagai patokan
+                        'user_jabatan' => $jabatan, 
+                        'user_divisi' => $data['divisi'] ?? '', // Simpan Divisi
                         'user_pangkat_gol' => $userData['pangkat_gol'] ?? '',
                         'user_pendidikan' => $userData['pendidikan'] ?? '',
                     ];

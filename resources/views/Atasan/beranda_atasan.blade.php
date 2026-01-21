@@ -13,71 +13,69 @@
   <div class="stats">
     <div class="box">
       <p class="label">Total Laporan Terkirim</p>
-      <h3>28 Laporan</h3>
+      <h3>{{ $totalLaporan }} Laporan</h3>
     </div>
     <div class="box">
       <p class="label">Total Tugas Terkirim</p>
-      <h3>15 Laporan</h3>
+      <h3>{{ $totalTugas }} Tugas</h3>
     </div>
   </div>
 </div>
 
-<!-- BUTTON -->
-<div class="action-center">
-  <a href="{{ route('tugas.create') }}" class="btn-task">Buat Tugas</a>
-</div>
 
 <!-- TEAM MANAJEMEN -->
 <div class="team">
   <h3>Team Manajemen</h3>
 
   <ul class="team-list">
+    @php
+        $divisions = [
+            'Tata Usaha' => [
+                'icon' => 'https://cdn-icons-png.flaticon.com/128/8921/8921211.png',
+                'keywords' => ['tata usaha', 'tu']
+            ],
+            'Produksi Primer' => [
+                'icon' => 'https://cdn-icons-png.flaticon.com/128/2257/2257185.png',
+                'keywords' => ['produksi primer']
+            ],
+            'Pasca Panen' => [
+                'icon' => 'https://cdn-icons-png.flaticon.com/128/88/88528.png',
+                'keywords' => ['pasca panen']
+            ],
+            'LABOR' => [
+                'icon' => 'https://cdn-icons-png.flaticon.com/128/10557/10557880.png',
+                'keywords' => ['labor', 'laboratorium']
+            ],
+        ];
+    @endphp
 
-    <li class="team-item">
-      <div class="team-header">
-        <img src="https://cdn-icons-png.flaticon.com/128/8921/8921211.png">
-        <span>Tata Usaha</span>
-      </div>
-      <ul class="member-list" style="display:none;">
-        <li>Ahmad Fauzi</li>
-        <li>Siti Rahma</li>
-        <li>Rina Putri</li>
-      </ul>
-    </li>
+    @foreach($divisions as $label => $data)
+        @php
+            // Filter katimjas based on division keyword matching (case-insensitive)
+            $members = $katimjas->filter(function($k) use ($data) {
+                foreach($data['keywords'] as $keyword) {
+                    if (stripos($k->divisi, $keyword) !== false) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        @endphp
 
-    <li class="team-item">
-      <div class="team-header">
-        <img src="https://cdn-icons-png.flaticon.com/128/2257/2257185.png">
-        <span>Produksi Primer</span>
-      </div>
-      <ul class="member-list" style="display:none;">
-        <li>Budi Santoso</li>
-        <li>Andi Wijaya</li>
-      </ul>
-    </li>
-
-    <li class="team-item">
-      <div class="team-header">
-        <img src="https://cdn-icons-png.flaticon.com/128/88/88528.png">
-        <span>Pasca Panen</span>
-      </div>
-      <ul class="member-list" style="display:none;">
-        <li>Dewi Lestari</li>
-        <li>Nina Amelia</li>
-      </ul>
-    </li>
-
-    <li class="team-item">
-      <div class="team-header">
-        <img src="https://cdn-icons-png.flaticon.com/128/10557/10557880.png">
-        <span>LABOR</span>
-      </div>
-      <ul class="member-list" style="display:none;">
-        <li>Rizky Pratama</li>
-        <li>Agus Saputra</li>
-      </ul>
-    </li>
-
+        <li class="team-item">
+          <div class="team-header">
+            <img src="{{ $data['icon'] }}" alt="{{ $label }}">
+            <span>{{ $label }}</span>
+          </div>
+          <ul class="member-list" style="display:none;">
+            @forelse($members as $member)
+                <li>{{ $member->nama }}</li>
+            @empty
+                <li style="color:#999; font-style:italic;">Belum ada anggota</li>
+            @endforelse
+          </ul>
+        </li>
+    @endforeach
   </ul>
 </div>
 
@@ -114,12 +112,6 @@ document.addEventListener('DOMContentLoaded', function () {
   background: #f1f3f5;
   padding: 24px;
   border-radius: 16px;
-}
-
-.action-center {
-  display: flex;
-  justify-content: center;
-  margin: 60px 0;
 }
 
 .btn-task {

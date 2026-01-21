@@ -103,19 +103,20 @@
     </div>
 
     <!-- FORM -->
-    <form class="task-form" method="POST" action="#" enctype="multipart/form-data">
+    <!-- FORM -->
+    <form class="task-form" id="createTaskForm" action="{{ route('tugas.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
         <!-- DIVISI -->
         <div id="formDivisi">
             <div class="form-group">
                 <label>Penerima Tugas (Divisi)</label>
-                <select>
-                    <option>Pilih Divisi</option>
-                    <option>Tata Usaha</option>
-                    <option>Produksi Primer</option>
-                    <option>Pasca Panen</option>
-                    <option>Labor</option>
+                <select id="selectDivisi" name="divisi">
+                    <option value="">Pilih Divisi</option>
+                    <option value="Tata Usaha">Tata Usaha</option>
+                    <option value="Produksi Primer">Produksi Primer</option>
+                    <option value="Pasca Panen">Pasca Panen</option>
+                    <option value="Labor">Labor</option>
                 </select>
             </div>
         </div>
@@ -124,37 +125,37 @@
         <div id="formPegawai" style="display:none">
             <div class="form-group">
                 <label>Penerima Tugas (Pegawai)</label>
-                <select>
-                    <option>Pilih Pegawai</option>
-                    <option>Ani</option>
-                    <option>Budi</option>
-                    <option>Sinta</option>
+                <select id="selectPegawai" name="pegawai" disabled>
+                    <option value="">Pilih Pegawai</option>
+                    @foreach($staff as $s)
+                        <option value="{{ $s->nama }}">{{ $s->nama }} - {{ $s->jabatan ?? '' }}</option>
+                    @endforeach
                 </select>
             </div>
         </div>
 
         <div class="form-group">
             <label>Judul Tugas</label>
-            <input type="text" placeholder="Masukkan judul tugas">
+            <input type="text" id="inputJudul" name="judul" placeholder="Masukkan judul tugas" required>
         </div>
 
         <div class="form-group">
             <label>Deskripsi</label>
-            <textarea placeholder="Deskripsi tugas"></textarea>
+            <textarea id="inputDeskripsi" name="deskripsi" placeholder="Deskripsi tugas" required></textarea>
         </div>
 
         <div class="form-group">
             <label>Upload File</label>
-            <input type="file">
+            <input type="file" id="inputFile" name="file">
         </div>
 
         <div class="form-group">
             <label>Tenggat Waktu</label>
-            <input type="date">
+            <input type="date" id="inputTenggat" name="tenggat" required>
         </div>
 
         <div class="submit-btn">
-            <button type="submit">Kirim Tugas</button>
+            <button type="submit" id="btnSubmit">Kirim Tugas</button>
         </div>
     </form>
 </div>
@@ -165,17 +166,27 @@ function switchTask(type) {
     const btnPegawai = document.getElementById('btnPegawai');
     const formDivisi = document.getElementById('formDivisi');
     const formPegawai = document.getElementById('formPegawai');
+    const selectDivisi = document.getElementById('selectDivisi');
+    const selectPegawai = document.getElementById('selectPegawai');
 
     if (type === 'divisi') {
         btnDivisi.classList.add('active');
         btnPegawai.classList.remove('active');
         formDivisi.style.display = 'block';
         formPegawai.style.display = 'none';
+        
+        // Enable Divisi, Disable Pegawai
+        selectDivisi.disabled = false;
+        selectPegawai.disabled = true;
     } else {
         btnPegawai.classList.add('active');
         btnDivisi.classList.remove('active');
         formPegawai.style.display = 'block';
         formDivisi.style.display = 'none';
+
+        // Enable Pegawai, Disable Divisi
+        selectPegawai.disabled = false;
+        selectDivisi.disabled = true;
     }
 }
 </script>

@@ -9,12 +9,20 @@ class Laporan extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $fillable = [
         'staff_id',
         'judul',
         'isi',
         'status',
         'catatan',
+        'indikator_id',
+        'triwulan',
+        'lampiran',
+        'devisi',
+        'tanggal',
+        'laporan_summary'
     ];
 
     public function staff()

@@ -26,8 +26,6 @@
             </h1>
         </div>
 
-        {{-- JUDUL --}}
-        <h2 class="text-sm font-semibold text-gray-800 mb-3">Detail Laporan</h2>
 
         {{-- TABLE --}}
         <div class="overflow-x-auto">
@@ -71,7 +69,7 @@
 
                             @for ($tw = 1; $tw <= 4; $tw++)
                                 <td class="border border-black text-center">
-                                    <button class="open-upload-modal" data-indikator="{{ $row }}" data-tw="{{ $tw }}">
+                                    <button class="open-upload-modal" data-indikator-id="{{ $i + 1 }}" data-tw="TW{{ $tw }}">
                                         ⬆️
                                     </button>
                                 </td>
@@ -89,10 +87,10 @@
         <div class="bg-white w-96 p-6 border border-black">
             <h3 class="font-semibold mb-4">Upload Data Dukung</h3>
 
-            <form action="{{ route('staff.upload') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('katimja.laporan.upload') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
-                <input type="hidden" name="indikator" id="indikatorInput">
+                <input type="hidden" name="indikator_id" id="indikatorInput">
                 <input type="hidden" name="tw" id="twInput">
 
                 <input type="file" name="file" required class="mb-4 w-full border">
@@ -117,7 +115,7 @@
 
         document.querySelectorAll('.open-upload-modal').forEach(btn => {
             btn.onclick = () => {
-                indikatorInput.value = btn.dataset.indikator;
+                indikatorInput.value = btn.dataset.indikatorId;
                 twInput.value = btn.dataset.tw;
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');

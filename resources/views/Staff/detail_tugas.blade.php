@@ -29,6 +29,22 @@
                 </p>
             </div>
 
+            <!-- STATUS & FILE -->
+             <div class="mb-6">
+                <span class="inline-block px-3 py-1 rounded-full text-white {{ ($tugas['status'] ?? '') === 'Selesai' ? 'bg-green-500' : 'bg-yellow-500' }}">
+                    Status: {{ $tugas['status'] ?? 'Pending' }}
+                </span>
+             </div>
+
+             @if(isset($tugas['file_selesai']) && !empty($tugas['file_selesai']))
+             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p class="text-sm text-green-700 font-semibold">Tugas Selesai! File Anda:</p>
+                <a href="{{ asset('storage/tugas_selesai/' . $tugas['file_selesai']) }}" target="_blank" class="text-blue-600 underline text-sm mt-1 block">
+                    {{ $tugas['file_selesai'] }}
+                </a>
+             </div>
+             @endif
+
             {{-- FORM UPLOAD --}}
             <form action="{{ route('tugas.upload', $tugas['id']) }}" method="POST" enctype="multipart/form-data">
                 @csrf
@@ -38,7 +54,7 @@
 
                     <label for="task_file_upload"
                         class="flex items-center justify-between p-3 border border-gray-300 rounded-lg cursor-pointer">
-                        <span class="text-gray-500">Choose File</span>
+                        <span id="file-chosen-text" class="text-gray-500">Upload File</span>
 
                         {{-- Icon --}}
                         <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,5 +76,12 @@
         </div>
 
     </div>
+
+    <script>
+        document.getElementById('task_file_upload').addEventListener('change', function() {
+            var fileName = this.files[0] ? this.files[0].name : "Upload File";
+            document.getElementById('file-chosen-text').textContent = fileName;
+        });
+    </script>
 
 @endsection

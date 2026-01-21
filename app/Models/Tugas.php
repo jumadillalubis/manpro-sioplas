@@ -10,5 +10,5 @@ class Tugas extends Model
     use HasFactory;
 
     protected $table = 'tugas'; // nama tabel di database
-    protected $fillable = ['penerima', 'judul', 'deskripsi', 'file_path', 'tenggat', 'dibuat_oleh'];
+    protected $fillable = ['penerima', 'judul', 'deskripsi', 'file_path', 'tenggat', 'pembuat'];
 }

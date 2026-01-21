@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Atasan;
 use App\Models\Tugas;
+use App\Models\Laporan;
 use Illuminate\Support\Facades\Hash;
 
 class AtasanController extends Controller
@@ -64,7 +65,13 @@ class AtasanController extends Controller
 
     public function beranda()
     {
-        return view('Atasan.beranda_atasan');
+        $katimjas = \App\Models\Katimja::all();
+        // Count tasks created by the current logged-in Atasan
+        $totalTugas = Tugas::where('pembuat', session('atasan_nama'))->count();
+        // Count all reports
+        $totalLaporan = Laporan::count();
+
+        return view('Atasan.beranda_atasan', compact('katimjas', 'totalTugas', 'totalLaporan'));
     }
 
     public function createTugas()
@@ -90,7 +97,7 @@ class AtasanController extends Controller
             'deskripsi' => $request->deskripsi,
             'file_path' => $filePath,
             'tenggat' => $request->tenggat,
-            'dibuat_oleh' => session('atasan_nama'),
+            'pembuat' => session('atasan_nama'),
         ]);
 
         return back()->with('success', 'Tugas berhasil dibuat');

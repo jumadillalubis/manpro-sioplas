@@ -75,6 +75,10 @@
     <label>Password</label>
     <input type="password" name="password" required>
 
+    <div style="text-align: right; margin-bottom: 15px;">
+      <a href="{{ route('reset-password') }}" style="color: #6ec8e0; text-decoration: none; font-size: 14px;">Lupa Password?</a>
+    </div>
+
     <button type="submit">Masuk</button>
   </form>
 </body>

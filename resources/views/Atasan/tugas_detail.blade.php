@@ -78,7 +78,8 @@
     <div class="detail-info">
       <h3>{{ $tugas['judul'] }}</h3>
       <p>Pegawai: {{ $tugas['pegawai'] }}</p>
-      <p>{{ $tugas['tanggal'] }}</p>
+      <p>Batas Waktu: {{ $tugas['deadline'] ?? '-' }}</p>
+      <p>Tanggal Dibuat: {{ $tugas['tanggal'] }}</p>
     </div>
 
     <form method="POST" action="{{ route('tugas.approve', $tugas['id']) }}">
