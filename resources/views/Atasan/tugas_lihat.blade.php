@@ -155,7 +155,7 @@
     <h1 class="task-title-text">{{ $tugas['judul'] }}</h1>
     <div class="task-meta grid grid-cols-3 gap-4 mt-4">
         <div class="meta-item">
-            <span class="meta-label">Penerima</span>
+            <span class="meta-label">{{ !empty($tugas['divisi']) ? 'Divisi' : 'Penerima' }}</span>
             <span class="meta-value">{{ $tugas['pegawai'] }}</span>
         </div>
         <div class="meta-item">
@@ -174,13 +174,19 @@
     {!! nl2br(e($tugas['deskripsi'])) !!}
   </div>
 
-  <!-- Dokumen Lampiran -->
+  <!-- Dokumen Lampiran (Tugas) -->
   @if(count($tugas['dokumen']) > 0)
     <h3 class="divider-title">Lampiran Dokumen</h3>
     <div class="file-list">
       @foreach($tugas['dokumen'] as $doc)
         <div class="file-item">
-          <span class="text-gray-700">{{ $doc['nama'] }}</span>
+            <div class="file-icon">📄</div>
+            <a href="{{ asset('storage/tugas_files/' . $doc['nama']) }}" target="_blank" class="file-link">
+                {{ $doc['nama'] }}
+            </a>
+            <a href="{{ asset('storage/tugas_files/' . $doc['nama']) }}" download class="ml-auto text-gray-500 hover:text-blue-600" title="Download">
+                ⬇
+            </a>
         </div>
       @endforeach
     </div>
@@ -191,24 +197,49 @@
     <h3 class="divider-title" style="color:#16a34a; border-color:#dcfce7;">Hasil Pengerjaan</h3>
     <div class="file-list">
       <div class="file-item" style="border-left: 4px solid #16a34a;">
-        <div class="flex flex-col">
-            <span class="text-xs text-gray-500 uppercase font-bold">File Selesai</span>
+        <div class="flex flex-col w-full">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-gray-500 uppercase font-bold">File Selesai</span>
+                @if(!empty($tugas['file_selesai_oleh']))
+                    <span class="text-xs text-gray-400">Oleh: {{ $tugas['file_selesai_oleh'] }}</span>
+                @endif
+            </div>
             <div class="flex items-center gap-3">
-                <a href="{{ asset('storage/tugas_selesai/' . $tugas['file_selesai']) }}" target="_blank" class="file-link">
+                <div class="file-icon text-green-600">✅</div>
+                <a href="{{ asset('storage/tugas_selesai/' . $tugas['file_selesai']) }}" target="_blank" class="file-link text-green-700">
                     {{ $tugas['file_selesai'] }}
                 </a>
-                <a href="{{ asset('storage/tugas_selesai/' . $tugas['file_selesai']) }}" download class="text-gray-500 hover:text-blue-600" title="Download File">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                    </svg>
+                <a href="{{ asset('storage/tugas_selesai/' . $tugas['file_selesai']) }}" download class="ml-auto text-gray-500 hover:text-blue-600" title="Download File">
+                    ⬇
                 </a>
             </div>
         </div>
       </div>
     </div>
+  @elseif($tugas['status'] != 'Pending')
+      <div class="p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300 mb-6 text-center text-gray-500 italic">
+        Belum ada hasil pengerjaan yang diunggah.
+      </div>
   @endif
 
-  <!-- Form Respons -->
+  <!-- Riwayat Respon / Revisi Terakhir -->
+  @if(!empty($tugas['respon']))
+    <div class="response-section bg-amber-50 border-amber-200 mb-8" style="margin-top:20px;">
+        <h3 class="divider-title text-amber-800" style="border-color:#fcd34d;">Catatan Revisi Terakhir</h3>
+        <p class="text-gray-800 italic mb-3">"{{ $tugas['respon'] }}"</p>
+        @if(!empty($tugas['file_respon']))
+            <div class="file-item bg-white border-amber-200">
+                <div class="file-icon text-amber-600">📎</div>
+                <a href="{{ asset('storage/tugas_respon/' . $tugas['file_respon']) }}" target="_blank" class="file-link text-amber-700">
+                    {{ $tugas['file_respon'] }}
+                </a>
+            </div>
+        @endif
+    </div>
+  @endif
+
+  <!-- Form Respons (Hanya jika belum Selesai) -->
+  @if($tugas['status'] != 'Selesai')
   <div class="response-section">
     <h3 class="divider-title">Kirim Respons / Revisi</h3>
     
@@ -216,7 +247,7 @@
         @csrf
         
         <div class="mb-4">
-            <textarea name="respon" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" rows="4" placeholder="Tulis catatan atau revisi untuk staff..."></textarea>
+            <textarea name="respon" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" rows="4" placeholder="Tulis catatan atau revisi untuk staff...">{{ $tugas['respon'] }}</textarea>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -236,6 +267,12 @@
         </div>
     </form>
   </div>
+  @else
+    <div class="p-6 bg-green-50 rounded-xl border border-green-200 text-center mt-8">
+        <h3 class="text-green-800 font-bold text-lg mb-1">Tugas Selesai</h3>
+        <p class="text-green-600">Tugas ini telah disetujui / selesai.</p>
+    </div>
+  @endif
 
 </div>
 @endsection

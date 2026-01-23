@@ -178,18 +178,23 @@ class TugasController extends Controller
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
                 
-                // Map API data to view structure
-                // Note: 'dokumen' and 'komentar' might not exist in API yet, providing default empty arrays
+                // Determine 'Penerima' or 'Divisi'
+                $penerima = !empty($data['divisi']) ? $data['divisi'] : ($data['penerima'] ?? '-'); 
+
                 $tugas = [
                     'id' => $data['id'],
                     'judul' => $data['judul'],
-                    'pegawai' => $data['penerima'], 
+                    'pegawai' => $penerima, // This can be a person's name or a division
+                    'divisi' => $data['divisi'] ?? null, // Explicitly pass divisi
                     'tanggal' => \Carbon\Carbon::parse($data['tanggal_buat_tugas'])->translatedFormat('d F Y'),
                     'deadline' => \Carbon\Carbon::parse($data['deadline'])->translatedFormat('d F Y'), 
                     'deskripsi' => $data['deskripsi'],
+                    'status' => $data['status'] ?? 'Pending',
                     'file_selesai' => $data['file_selesai'] ?? null,
+                    'file_selesai_oleh' => $data['file_selesai_oleh'] ?? null,
+                    'respon' => $data['respon'] ?? null,
+                    'file_respon' => $data['file_respon'] ?? null,
                     'dokumen' => [], 
-                    'komentar' => []
                 ];
 
                 // If API has file_tugas, add it to documents

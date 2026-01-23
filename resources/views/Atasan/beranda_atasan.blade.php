@@ -5,7 +5,7 @@
 @section('content')
 
 <h2 class="page-title">
-  Selamat Datang, {{ session('atasan_nama', 'Atasan') }}
+  Selamat Datang, {{ $myName ?? 'Atasan' }}
 </h2>
 
 <!-- STATISTIK -->
@@ -16,8 +16,11 @@
       <h3>{{ $totalLaporan }} Laporan</h3>
     </div>
     <div class="box">
-      <p class="label">Total Tugas Terkirim Katima Dan Staff</p>
+      <p class="label">Total Tugas Terkirim Katimja dan Staff</p>
       <h3>{{ $totalTugas }} Tugas</h3>
+      <p style="font-size: 13px; color: #666; margin-top: 4px;">
+        (Ke Katimja: <b>{{ $tugasKeKatimja }}</b>, Ke Staff: <b>{{ $tugasKeStaff }}</b>)
+      </p>
     </div>
   </div>
 </div>

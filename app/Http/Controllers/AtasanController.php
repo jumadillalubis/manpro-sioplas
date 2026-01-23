@@ -69,18 +69,38 @@ class AtasanController extends Controller
         
         // Fetch tasks from API
         $totalTugas = 0;
+        $tugasKeKatimja = 0;
+        $tugasKeStaff = 0;
+        
+        // Get name from session (support both login types)
+        $myName = session('atasan_nama') ?? session('user_nama');
+
         try {
             $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas');
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
-                $myName = session('atasan_nama');
                 
                 // Count tasks created by me (or generic 'Atasan')
                 $myTasks = array_filter($data, function($item) use ($myName) {
                     $creator = $item['pembuat'] ?? '';
-                    return $creator === $myName || $creator === 'Atasan';
+                    // Case-insensitive comparison
+                    return strcasecmp($creator, $myName) === 0 || $creator === 'Atasan';
                 });
+                
                 $totalTugas = count($myTasks);
+
+                // Split count based on recipient (Divisi vs Staff)
+                $divisiList = ['Tata Usaha', 'Produksi Primer', 'Pasca Panen', 'Labor'];
+                foreach ($myTasks as $task) {
+                    $divisi = $task['divisi'] ?? '';
+                    $penerima = $task['penerima'] ?? '';
+
+                    if (!empty($divisi) || in_array($penerima, $divisiList)) {
+                        $tugasKeKatimja++;
+                    } else {
+                        $tugasKeStaff++;
+                    }
+                }
             }
         } catch (\Exception $e) {
             $totalTugas = 0;
@@ -89,7 +109,7 @@ class AtasanController extends Controller
         // Count all reports
         $totalLaporan = Laporan::count();
 
-        return view('Atasan.beranda_atasan', compact('katimjas', 'totalTugas', 'totalLaporan'));
+        return view('Atasan.beranda_atasan', compact('katimjas', 'totalTugas', 'totalLaporan', 'tugasKeKatimja', 'tugasKeStaff', 'myName'));
     }
 
     public function createTugas()
