@@ -83,10 +83,18 @@ class TugasController extends Controller
         $divisi = $request->input('divisi');
         $penerima = $request->input('pegawai');
 
-        // If user selected "Divisi", clear penerima. If "Pegawai", clear divisi.
-        // The view logic sends both inputs but one might be hidden/empty.
-        // We trust the input logic or force consistency:
-        // Ideally we check which mode was active, but checking values is enough if form clears them.
+        // VALIDATION: Ensure at least one target is selected
+        if (empty($divisi) && empty($penerima)) {
+            return back()->with('error', 'Harap pilih Tujuan Tugas (Divisi atau Pegawai).')->withInput();
+        }
+
+        // Logic: If Divisi is selected, ensure Penerima is null (and vice versa) to avoid ambiguity
+        // The frontend disables the other input, so usually one is null, but we enforce it here.
+        if (!empty($divisi)) {
+            $penerima = null; // Broadcast to Division
+        } else {
+            $divisi = null; // Specific Personal Assignment
+        }
         
         try {
             $tenggatIso = \Carbon\Carbon::parse($request->tenggat)->startOfDay()->toIso8601String();
@@ -98,7 +106,7 @@ class TugasController extends Controller
                 'deadline' => $tenggatIso,
                 'penerima' => $penerima,
                 'divisi' => $divisi,
-                'pembuat' => session('user_nama', 'Atasan'), 
+                'pembuat' => session('atasan_nama') ?? session('user_nama') ?? 'Atasan', 
                 'status' => 'Pending'
             ]);
 
@@ -127,8 +135,12 @@ class TugasController extends Controller
                     'judul' => $data['judul'],
                     'pegawai' => $penerima,
                     'tanggal' => \Carbon\Carbon::parse($data['tanggal_buat_tugas'])->translatedFormat('d F Y'),
-                    'deadline' => \Carbon\Carbon::parse($data['deadline'])->translatedFormat('d F Y'), // Added
-                    'deskripsi' => $data['deskripsi']
+                    'deadline' => \Carbon\Carbon::parse($data['deadline'])->translatedFormat('d F Y'),
+                    'deskripsi' => $data['deskripsi'],
+                    'status' => $data['status'] ?? 'Pending',
+                    'file_selesai' => $data['file_selesai'] ?? null,
+                    'respon' => $data['respon'] ?? null,
+                    'file_respon' => $data['file_respon'] ?? null,
                 ];
             } else {
                 $tugas = [];
@@ -142,9 +154,19 @@ class TugasController extends Controller
 
     public function approve($id)
     {
-        return redirect()
-            ->route('tugas.show', $id)
-            ->with('approved', true);
+        try {
+            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/approve');
+            
+            if ($response->successful()) {
+                return redirect()
+                    ->route('tugas.show', $id)
+                    ->with('success', 'Tugas berhasil disetujui (Approved).');
+            } else {
+                return back()->with('error', 'Gagal menyetujui tugas di server.');
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Terjadi kesalahan koneksi.');
+        }
     }
 
     public function lihat($id)
@@ -161,9 +183,9 @@ class TugasController extends Controller
                 $tugas = [
                     'id' => $data['id'],
                     'judul' => $data['judul'],
-                    'pegawai' => $data['penerima'], // Adjust depending on who assigned it
+                    'pegawai' => $data['penerima'], 
                     'tanggal' => \Carbon\Carbon::parse($data['tanggal_buat_tugas'])->translatedFormat('d F Y'),
-                    'deadline' => \Carbon\Carbon::parse($data['deadline'])->translatedFormat('d F Y'), // Added
+                    'deadline' => \Carbon\Carbon::parse($data['deadline'])->translatedFormat('d F Y'), 
                     'deskripsi' => $data['deskripsi'],
                     'file_selesai' => $data['file_selesai'] ?? null,
                     'dokumen' => [], 

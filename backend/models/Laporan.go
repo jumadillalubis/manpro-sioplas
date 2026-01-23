@@ -11,6 +11,7 @@ type Laporan struct {
 	Tanggal     time.Time `json:"tanggal"`
 	IndikatorID int       `json:"indikator_id"`
 	Triwulan    string    `json:"triwulan"`
+	Ringkasan   string    `json:"ringkasan"`
 }
 
 func (Laporan) TableName() string {

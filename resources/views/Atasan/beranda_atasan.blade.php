@@ -16,7 +16,7 @@
       <h3>{{ $totalLaporan }} Laporan</h3>
     </div>
     <div class="box">
-      <p class="label">Total Tugas Terkirim</p>
+      <p class="label">Total Tugas Terkirim Katima Dan Staff</p>
       <h3>{{ $totalTugas }} Tugas</h3>
     </div>
   </div>

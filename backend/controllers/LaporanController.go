@@ -79,3 +79,29 @@ func GetLaporanById(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "data": laporan})
 }
+
+// UpdateRingkasan updates the AI summary for a report
+func UpdateRingkasan(c *gin.Context) {
+	id := c.Param("id")
+	var input struct {
+		Ringkasan string `json:"ringkasan"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input summarization tidak valid"})
+		return
+	}
+
+	var laporan models.Laporan
+	if err := config.DB.First(&laporan, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Laporan tidak ditemukan"})
+		return
+	}
+
+	laporan.Ringkasan = input.Ringkasan
+	if err := config.DB.Save(&laporan).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan ringkasan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Ringkasan berhasil disimpan", "data": laporan})
+}

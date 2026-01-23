@@ -33,14 +33,28 @@ class NotificationController extends Controller
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
                 
-                return collect($data)->map(function ($item) {
+                return collect($data)->map(function ($item) use ($prefix) { // Use prefix to determine role
+                    
+                    $tugasId = $item['tugas_id'] ?? null;
+                    $url = '#';
+
+                    if ($tugasId) {
+                        if ($prefix === 'atasan') {
+                            $url = route('tugas.show', $tugasId);
+                        } elseif ($prefix === 'katimja') {
+                            $url = route('katimja.tugas.show', $tugasId);
+                        } else {
+                            $url = route('tugas.detail', $tugasId);
+                        }
+                    }
+
                     return [
                         'id' => $item['id'],
                         'title' => $item['judul'], 
                         'message' => $item['pesan'], 
                         'role' => 'user', 
                         'is_read' => ($item['status'] ?? 'unread') !== 'unread',
-                        'url' => '#' 
+                        'url' => $url 
                     ];
                 });
             }

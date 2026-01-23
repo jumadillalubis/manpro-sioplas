@@ -17,6 +17,8 @@ yarn-error.log
 /.idea
 /.vscode
 
-/api_sioplas 2/venv/
+/api_sioplas2/venv/
 *.gguf
 __pycache__
+
+/venv

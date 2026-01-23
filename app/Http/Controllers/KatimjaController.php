@@ -9,7 +9,78 @@ class KatimjaController extends Controller
     // Menampilkan Beranda untuk Katimja
     public function beranda()
     {
-        return view('Katimja.Beranda_Katimja');
+        $nama = session('user_nama');
+        $divisi = session('user_divisi'); 
+
+        // Prioritas 2: Tebak dari jabatan jika session kosong (Logic reused from tugas())
+        if (empty($divisi)) {
+            $jabatan = session('user_jabatan');
+            $divisionMap = [
+                'Tata Usaha' => 'Tata Usaha', 
+                'Produksi Primer' => 'Produksi Primer', 
+                'Pasca Panen' => 'Pasca Panen', 
+                'Labor' => 'Labor',
+                'Lab' => 'Labor'
+            ];
+
+            foreach ($divisionMap as $key => $val) {
+                if (stripos($jabatan, $key) !== false) {
+                    $divisi = $val;
+                    break;
+                }
+            }
+        }
+
+        // 1. Hitung Total Tugas & Fetch Created Tasks
+        $totalTugas = 0;
+        $createdTasks = [];
+        try {
+            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas');
+            if ($response->successful()) {
+                $data = $response->json()['data'] ?? [];
+                
+                // Filter for Total Count (Incoming + Created)
+                $filteredTotal = array_filter($data, function($item) use ($nama, $divisi) {
+                    $isPembuat = isset($item['pembuat']) && $item['pembuat'] === $nama;
+                    $isDivisi = isset($item['divisi']) && $item['divisi'] === $divisi;
+                    $isPenerima = isset($item['penerima']) && $item['penerima'] === $nama;
+                    return $isPembuat || $isDivisi || $isPenerima;
+                });
+                $totalTugas = count($filteredTotal);
+
+                // Filter for "Daftar Tugas Katimja" (Only Created by Me)
+                $createdTasksRaw = array_filter($data, function($item) use ($nama) {
+                     return isset($item['pembuat']) && $item['pembuat'] === $nama;
+                });
+
+                // Format for View
+                foreach ($createdTasksRaw as $item) {
+                    $createdTasks[] = [
+                        'id' => $item['id'],
+                        'judul' => $item['judul'],
+                        'deadline' => \Carbon\Carbon::parse($item['deadline'])->translatedFormat('d F Y'),
+                        'type' => !empty($item['divisi']) ? 'Team' : 'Personal',
+                        'status' => $item['status'] ?? 'Pending',
+                        'id_tugas' => 'T' . str_pad($item['id'], 5, '0', STR_PAD_LEFT) // Format ID e.g., T00123
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            $totalTugas = 0;
+            $createdTasks = [];
+        }
+
+        // 2. Hitung Total Laporan (berdasarkan divisi)
+        $totalLaporan = 0;
+        try {
+            if ($divisi) {
+                $totalLaporan = \App\Models\Laporan::where('devisi', $divisi)->count();
+            }
+        } catch (\Exception $e) {
+             $totalLaporan = 0;
+        }
+
+        return view('Katimja.Beranda_Katimja', compact('totalTugas', 'totalLaporan', 'createdTasks'));
     }
 
     // Menampilkan Laporan untuk Katimja
@@ -61,7 +132,9 @@ class KatimjaController extends Controller
                     $isDivisi = isset($item['divisi']) && $item['divisi'] === $divisi;
                     $isPenerima = isset($item['penerima']) && $item['penerima'] === $nama;
 
-                    return $isPembuat || $isDivisi || $isPenerima;
+                    // Show only if I am the recipient/division AND I am NOT the creator
+                    // This creates the "Tugas dari Atasan" view.
+                    return ($isDivisi || $isPenerima) && !$isPembuat;
                 });
 
                 $tugas = array_map(function($item) {
@@ -71,7 +144,8 @@ class KatimjaController extends Controller
                        'status' => $item['status'] ?? 'Pending',
                        'tanggal_buat' => \Carbon\Carbon::parse($item['tanggal_buat_tugas'])->translatedFormat('d F Y'),
                        'deadline' => \Carbon\Carbon::parse($item['deadline'])->translatedFormat('d F Y'),
-                       'kepada' => !empty($item['divisi']) ? $item['divisi'] : ($item['penerima'] ?? '-')
+                       'kepada' => !empty($item['divisi']) ? $item['divisi'] : ($item['penerima'] ?? '-'),
+                       'source' => $item['source'] ?? 'atasan' // Map source
                    ];
                 }, $data);
             }
@@ -83,40 +157,53 @@ class KatimjaController extends Controller
     }
 
     // Menampilkan Detail Tugas
-    public function showTugas($id)
+    public function showTugas(Request $request, $id)
     {
         $tugas = [];
         $staff = [];
+        $source = $request->query('source', 'atasan'); // Default to atasan if missing
+
         try {
-            // Get Task Detail
-            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas/' . $id);
+            // Get Task Detail (PASS SOURCE)
+            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas/' . $id . '?source=' . $source);
+            
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
+                
+                // Populate Tugas Array
                 $tugas = [
                     'id' => $data['id'],
+                    'source' => $data['source'] ?? $source,
                     'judul' => $data['judul'],
                     'deskripsi' => $data['deskripsi'],
                     'status' => $data['status'],
                     'batas_waktu' => \Carbon\Carbon::parse($data['deadline'])->translatedFormat('d F Y'),
                     'penerima' => $data['penerima'] ?: $data['divisi'],
-                    'divisi' => $data['divisi'], // Pass divisi for logic check
+                    'divisi' => $data['divisi'],
                     'file_selesai' => $data['file_selesai'] ?? null,
+                    'file_selesai_oleh' => $data['file_selesai_oleh'] ?? null,
                     'respon' => $data['respon'] ?? null,
-                    'file_respon' => $data['file_respon'] ?? null
+                    'file_respon' => $data['file_respon'] ?? null,
+                    'pembuat' => $data['pembuat'] ?? null,
+                    'is_me' => ($data['pembuat'] ?? '') === session('user_nama'),
+                    'is_atasan_task' => $source === 'atasan',
                 ];
-            }
 
-            // Get Staff List (for assignment dropdown)
-            $respStaff = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/staff');
-            if ($respStaff->successful()) {
-                $staffData = $respStaff->json()['data'] ?? [];
-                $staff = array_map(function($item) {
-                    return (object) $item;
-                }, $staffData);
+                // Get Staff List (Only if task is found)
+                $respStaff = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/staff');
+                if ($respStaff->successful()) {
+                    $staffData = $respStaff->json()['data'] ?? [];
+                    $staff = array_map(function($item) {
+                        return (object) $item;
+                    }, $staffData);
+                }
+
+            } else {
+                return redirect()->route('tugas.katimja')->with('error', 'Tugas tidak ditemukan atau terjadi kesalahan server.');
             }
 
         } catch (\Exception $e) {
-            // Error handling
+            return redirect()->route('tugas.katimja')->with('error', 'Terjadi kesalahan koneksi: ' . $e->getMessage());
         }
 
         return view('Katimja.TugasDetail_Katimja', compact('tugas', 'staff'));
@@ -149,9 +236,27 @@ class KatimjaController extends Controller
             'judul' => 'required|string|max:255',
             'deskripsi' => 'required|string',
             'tenggat' => 'required|date',
-            'penerima' => 'required|string',
+            'tipe_tugas' => 'required|in:personal,tim',
+            'penerima' => 'nullable|string',
             'file' => 'nullable|file|max:10240' 
         ]);
+
+        // Logic Penentuan Penerima based on Type
+        $penerima = $request->penerima;
+        $divisiUser = session('user_divisi');
+
+        if ($request->tipe_tugas === 'tim') {
+            // Assign to whole division
+            if (empty($divisiUser)) {
+                return back()->with('error', 'Gagal: Divisi Anda tidak terdeteksi.');
+            }
+            $penerima = $divisiUser;
+        } else {
+            // Personal
+            if (empty($penerima)) {
+                return back()->with('error', 'Harap pilih staff untuk tugas personal.');
+            }
+        }
 
         $filePath = null;
         if ($request->hasFile('file')) {
@@ -170,10 +275,10 @@ class KatimjaController extends Controller
                 'deskripsi' => $request->deskripsi,
                 'file_tugas' => $filePath, // Matches json:"file_tugas"
                 'deadline' => $tenggatIso, // Matches json:"deadline"
-                'penerima' => $request->penerima,
+                'penerima' => $penerima,   // Matches json:"penerima"
                 'pembuat' => session('user_nama'), // Matches json:"pembuat"
                 'status' => 'Pending',
-                'divisi' => session('user_divisi') ?? '' // Optional: Send division if available
+                'divisi' => $divisiUser ?? '' // Optional: Send division if available
             ]);
 
             if ($response->successful()) {
@@ -202,10 +307,15 @@ class KatimjaController extends Controller
         }
 
         // Kirim ke Backend API untuk update status & file
+        // Kirim ke Backend API untuk update status & file
+        // Pass source from request query or input
+        $source = $request->query('source', 'atasan'); 
+
         try {
-            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/selesai', [
+            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/selesai?source=' . $source, [
                 'file_selesai' => $filename,
-                'role' => 'katimja'
+                'role' => 'katimja',
+                'uploader' => 'Katimja ' . session('user_nama')
             ]);
 
                 if ($response->successful()) {
@@ -225,7 +335,8 @@ class KatimjaController extends Controller
         ]);
 
         try {
-            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id, [
+            $source = $request->query('source', 'atasan');
+            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '?source=' . $source, [
                 'penerima' => $request->penerima
             ]);
 
@@ -288,5 +399,16 @@ class KatimjaController extends Controller
         }
 
         return back()->with('success', 'File laporan berhasil diupload!');
+    }
+    public function approveTugas($id)
+    {
+        // Call Go API to approve task (Katimja specific)
+        $response = \Illuminate\Support\Facades\Http::put("http://localhost:8080/api/tugas/katimja/{$id}/approve");
+
+        if ($response->successful()) {
+            return redirect()->back()->with('success', 'Tugas berhasil disetujui!');
+        } else {
+            return redirect()->back()->with('error', 'Gagal menyetujui tugas: ' . $response->body());
+        }
     }
 }

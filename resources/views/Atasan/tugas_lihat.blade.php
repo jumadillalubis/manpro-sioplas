@@ -188,7 +188,7 @@
 
   <!-- Hasil Pengerjaan -->
   @if(!empty($tugas['file_selesai']))
-    <h3 class="divider-title" style="color:#16a34a; border-color:#dcfce7;">✅ Hasil Pengerjaan</h3>
+    <h3 class="divider-title" style="color:#16a34a; border-color:#dcfce7;">Hasil Pengerjaan</h3>
     <div class="file-list">
       <div class="file-item" style="border-left: 4px solid #16a34a;">
         <div class="flex flex-col">

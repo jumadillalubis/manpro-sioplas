@@ -5,259 +5,522 @@ import (
 	"SIOPLAS/models"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// CreateTugas creates a new task and triggers notifications
+// Helper DTO
+type TugasInput struct {
+	Id              uint      `json:"id"`
+	Pembuat         string    `json:"pembuat"`
+	Judul           string    `json:"judul"`
+	Deskripsi       string    `json:"deskripsi"`
+	FileTugas       string    `json:"file_tugas"`
+	FileSelesai     string    `json:"file_selesai"`
+	FileSelesaiOleh string    `json:"file_selesai_oleh"`
+	Status          string    `json:"status"`
+	Divisi          string    `json:"divisi"`
+	Penerima        string    `json:"penerima"`
+	Deadline        time.Time `json:"deadline"`
+	Tanggal         time.Time `json:"tanggal_buat_tugas"`
+	Respon          string    `json:"respon"`
+	FileRespon      string    `json:"file_respon"`
+
+	// Optional specific source or type
+	TipeTugas string `json:"tipe_tugas"`
+}
+
+func (i TugasInput) ToAtasan() models.Tugas_Atasan {
+	return models.Tugas_Atasan{
+		Pembuat:    i.Pembuat,
+		Judul:      i.Judul,
+		Deskripsi:  i.Deskripsi,
+		FileTugas:  i.FileTugas,
+		Status:     i.Status,
+		Divisi:     i.Divisi,
+		Penerima:   i.Penerima,
+		Deadline:   i.Deadline,
+		Tanggal:    i.Tanggal,
+		Respon:     i.Respon,
+		FileRespon: i.FileRespon,
+	}
+}
+
+func (i TugasInput) ToKatimja() models.Tugas_Katimja {
+	return models.Tugas_Katimja{
+		Pembuat:    i.Pembuat,
+		Judul:      i.Judul,
+		Deskripsi:  i.Deskripsi,
+		FileTugas:  i.FileTugas,
+		Status:     i.Status,
+		Divisi:     i.Divisi,
+		Penerima:   i.Penerima,
+		Deadline:   i.Deadline,
+		Tanggal:    i.Tanggal,
+		Respon:     i.Respon,
+		FileRespon: i.FileRespon,
+		Type:       i.TipeTugas, // Map TipeTugas input to Type column
+	}
+}
+
+// CreateTugas creates a new task in the appropriate table
 func CreateTugas(c *gin.Context) {
-	var input models.Tugas
+	var input TugasInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
 		return
 	}
 
-	// Set timestamps if not provided (though GORM usually handles this if tagged, explicit is safer for logic)
 	if input.Tanggal.IsZero() {
 		input.Tanggal = time.Now()
 	}
-
-	if err := config.DB.Create(&input).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat tugas"})
-		return
+	if input.Status == "" {
+		input.Status = "Pending"
 	}
 
-	// Trigger Notifications asynchronously
-	go func(tugasId uint, judul, divisi, penerima string) {
-		// 1. Notify Atasan (Semua atasan atau satu?)
-		// Biasanya Atasan perlu tahu semua, tapi kita filter jika perlu. Sementara kirim ke semua Atasan.
-		var atasans []models.Atasan
-		config.DB.Find(&atasans)
-		for _, u := range atasans {
-			CreateNotification(fmt.Sprint(tugasId), fmt.Sprintf("atasan-%d", u.Id), "Tugas Baru", fmt.Sprintf("Tugas baru '%s' telah dibuat.", judul), "unread")
+	// Detect Source
+	// If 'tipe_tugas' is explicit (from Katimja forms), ok.
+	// Or check Pembuat against Atasan table.
+	isAtasan := false
+
+	// Logic: If Pembuat is in Atasan table -> Atasan Task.
+	// If Pembuat is NOT Atasan (e.g. Katimja name) -> Katimja Task.
+	var atasan models.Atasan
+	if err := config.DB.Where("nama = ?", input.Pembuat).First(&atasan).Error; err == nil {
+		isAtasan = true
+	}
+
+	var savedId uint
+	var source string
+
+	if isAtasan {
+		tugas := input.ToAtasan()
+		if err := config.DB.Create(&tugas).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat tugas atasan"})
+			return
 		}
-
-		// 2. Jika ditujukan ke DIVISI
-		if divisi != "" && divisi != "Pilih Divisi" {
-			// Notify Katimja sesuai Divisi
-			var katimjas []models.Katimja
-			// Cari Katimja yang divisinya cocok, ATAU jabatannya mengandung nama divisi (fallback)
-			if err := config.DB.Where("divisi = ? OR jabatan LIKE ?", divisi, "%"+divisi+"%").Find(&katimjas).Error; err == nil {
-				fmt.Printf("Found %d Katimja for division %s\n", len(katimjas), divisi) // Logging debug
-				for _, u := range katimjas {
-					CreateNotification(fmt.Sprint(tugasId), fmt.Sprintf("katimja-%d", u.Id), "Tugas Baru", fmt.Sprintf("Tugas '%s' masuk ke divisi Anda (%s).", judul, divisi), "unread")
-				}
-			} else {
-				fmt.Println("Error finding Katimja:", err)
-			}
-
-			// Notify Staff di divisi tersebut
-			// (Asumsi Staff juga punya Divisi atau dicari via Jabatan)
-			var staffs []models.Staff
-			config.DB.Where("jabatan LIKE ?", "%"+divisi+"%").Find(&staffs)
-			for _, u := range staffs {
-				CreateNotification(fmt.Sprint(tugasId), fmt.Sprintf("staff-%d", u.Id), "Tugas Baru", fmt.Sprintf("Tugas '%s' ditugaskan ke divisi Anda.", judul), "unread")
-			}
+		savedId = tugas.Id
+		source = "atasan"
+	} else {
+		// Assume Katimja
+		tugas := input.ToKatimja()
+		if err := config.DB.Create(&tugas).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat tugas katimja"})
+			return
 		}
+		savedId = tugas.Id
+		source = "katimja"
+	}
 
-		// 3. Jika ditujukan ke PEGAWAI (Spesifik)
-		if penerima != "" && penerima != "Pilih Pegawai" {
-			// Cek di Staff
-			var staff models.Staff
-			if err := config.DB.Where("nama = ?", penerima).First(&staff).Error; err == nil {
-				CreateNotification(fmt.Sprint(tugasId), fmt.Sprintf("staff-%d", staff.Id), "Tugas Personal", fmt.Sprintf("Anda diberi tugas baru: '%s'", judul), "unread")
-			}
-			// Cek di Katimja (jika bisa ditugaskan ke Katimja)
-			var katimja models.Katimja
-			if err := config.DB.Where("nama = ?", penerima).First(&katimja).Error; err == nil {
-				CreateNotification(fmt.Sprint(tugasId), fmt.Sprintf("katimja-%d", katimja.Id), "Tugas Personal", fmt.Sprintf("Anda diberi tugas baru: '%s'", judul), "unread")
-			}
-		}
-	}(input.Id, input.Judul, input.Divisi, input.Penerima)
+	// Notifications
+	go sendNotifications(savedId, source, input)
 
-	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Tugas berhasil dibuat", "data": input})
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Tugas berhasil dibuat", "data": map[string]interface{}{
+		"id": savedId, "source": source,
+	}})
 }
 
-// GetAllTugas retrieves all tasks
+// GetAllTugas retrieves all tasks from both tables
 func GetAllTugas(c *gin.Context) {
-	var tugasList []models.Tugas
-	if err := config.DB.Find(&tugasList).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data tugas"})
-		return
+	var tugasAtasan []models.Tugas_Atasan
+	var tugasKatimja []models.Tugas_Katimja
+
+	config.DB.Find(&tugasAtasan)
+	config.DB.Find(&tugasKatimja)
+
+	var combined []map[string]interface{}
+
+	for _, t := range tugasAtasan {
+		combined = append(combined, map[string]interface{}{
+			"id": t.Id, "source": "atasan",
+			"judul": t.Judul, "pembuat": t.Pembuat, "status": t.Status,
+			"deadline": t.Deadline, "tanggal_buat_tugas": t.Tanggal,
+			"divisi": t.Divisi, "penerima": t.Penerima,
+			"file_selesai": t.FileSelesai, "file_selesai_oleh": t.FileSelesaiOleh,
+			"respon": t.Respon, "file_respon": t.FileRespon, "deskripsi": t.Deskripsi, "file_tugas": t.FileTugas,
+		})
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success", "data": tugasList})
+	for _, t := range tugasKatimja {
+		combined = append(combined, map[string]interface{}{
+			"id": t.Id, "source": "katimja",
+			"judul": t.Judul, "pembuat": t.Pembuat, "status": t.Status,
+			"deadline": t.Deadline, "tanggal_buat_tugas": t.Tanggal,
+			"divisi": t.Divisi, "penerima": t.Penerima,
+			"file_selesai": t.FileSelesai, "file_selesai_oleh": t.FileSelesaiOleh,
+			"respon": t.Respon, "file_respon": t.FileRespon, "deskripsi": t.Deskripsi, "file_tugas": t.FileTugas,
+		})
+	}
+
+	// Sort by Date Descending
+	sort.Slice(combined, func(i, j int) bool {
+		t1, _ := combined[i]["tanggal_buat_tugas"].(time.Time)
+		t2, _ := combined[j]["tanggal_buat_tugas"].(time.Time)
+		return t1.After(t2)
+	})
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": combined})
 }
 
 // GetTugasById retrieves a single task
+// MUST provide ?source=atasan or ?source=katimja
 func GetTugasById(c *gin.Context) {
 	id := c.Param("id")
-	var tugas models.Tugas
-	if err := config.DB.First(&tugas, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
-		return
+	source := c.Query("source")
+
+	if source == "atasan" {
+		var tugas models.Tugas_Atasan
+		if err := config.DB.First(&tugas, id).Error; err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": tugas, "source": "atasan"})
+			return
+		}
+	} else if source == "katimja" {
+		var tugas models.Tugas_Katimja
+		if err := config.DB.First(&tugas, id).Error; err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": tugas, "source": "katimja"})
+			return
+		}
+	} else {
+		// Fallback: Try both (Risk of collision)
+		var tAtasan models.Tugas_Atasan
+		if err := config.DB.First(&tAtasan, id).Error; err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": tAtasan, "source": "atasan"})
+			return
+		}
+		var tKatimja models.Tugas_Katimja
+		if err := config.DB.First(&tKatimja, id).Error; err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": tKatimja, "source": "katimja"})
+			return
+		}
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success", "data": tugas})
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
 }
 
-// GetTugasByUser retrieves tasks for a specific user (by name or division)
+// GetTugasByUser retrieves tasks for a specific user
 func GetTugasByUser(c *gin.Context) {
+	// Reusing GetAllTugas logic efficiently by filtering in DB?
+	// But we need to check both tables.
+	// Simplest: Call the same logic as GetAllTugas but filtered.
+	// Filter: Penerima = Name OR Divisi = Divisi
+
 	nama := c.Query("nama")
 	divisi := c.Query("divisi")
 
-	var tugasList []models.Tugas
+	var tugasAtasan []models.Tugas_Atasan
+	config.DB.Where("penerima = ? OR (divisi != '' AND divisi = ?)", nama, divisi).Find(&tugasAtasan)
 
-	// Logic: Ambil tugas yang Penerima == Nama User OR Divisi == Divisi User
-	if err := config.DB.Where("penerima = ? OR (divisi != '' AND divisi = ?)", nama, divisi).Find(&tugasList).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data tugas"})
-		return
+	var tugasKatimja []models.Tugas_Katimja
+	config.DB.Where("penerima = ? OR (divisi != '' AND divisi = ?)", nama, divisi).Find(&tugasKatimja)
+
+	var combined []map[string]interface{}
+	for _, t := range tugasAtasan {
+		combined = append(combined, map[string]interface{}{
+			"id": t.Id, "source": "atasan",
+			"judul": t.Judul, "pembuat": t.Pembuat, "status": t.Status, "deadline": t.Deadline, "tanggal_buat_tugas": t.Tanggal,
+			"divisi": t.Divisi, "penerima": t.Penerima,
+		})
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success", "data": tugasList})
+	for _, t := range tugasKatimja {
+		combined = append(combined, map[string]interface{}{
+			"id": t.Id, "source": "katimja",
+			"judul": t.Judul, "pembuat": t.Pembuat, "status": t.Status, "deadline": t.Deadline, "tanggal_buat_tugas": t.Tanggal,
+			"divisi": t.Divisi, "penerima": t.Penerima,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": combined})
 }
 
-// UpdateTugasSelesai mark task as done and save result file
+// UpdateTugasSelesai
 func UpdateTugasSelesai(c *gin.Context) {
 	id := c.Param("id")
-	var tugas models.Tugas
-	if err := config.DB.First(&tugas, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
-		return
-	}
+	source := c.Query("source") // Must be passed by frontend
 
 	var input struct {
 		FileSelesai string `json:"file_selesai"`
-		Role        string `json:"role"` // "staff" or "katimja"
+		Role        string `json:"role"`
+		Uploader    string `json:"uploader"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
 		return
 	}
 
-	if input.FileSelesai != "" {
-		tugas.FileSelesai = input.FileSelesai
+	// Helper function to update and notify
+	update := func(tugas interface{}, table string) {
+		// Reflection or Type Switch needed if using interface, but code duplication is safer here
 	}
-	tugas.Status = "Selesai" // Or "Menunggu Review" if complex workflow
+	_ = update
 
-	if err := config.DB.Save(&tugas).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update tugas"})
+	if source == "atasan" {
+		var t models.Tugas_Atasan
+		if err := config.DB.First(&t, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Tugas not found"})
+			return
+		}
+		if input.FileSelesai != "" {
+			t.FileSelesai = input.FileSelesai
+		}
+		if input.Uploader != "" {
+			t.FileSelesaiOleh = input.Uploader
+		}
+
+		// Workflow Logic for Atasan Task
+		if input.Role == "katimja" {
+			t.Status = "Menunggu Approval" // Forwarded to Atasan
+			notifySelesai(t.Id, t.Judul, t.Divisi, t.Pembuat, input.Role, source)
+		} else {
+			t.Status = "Menunggu Review" // Staff submitted, waiting for Katimja
+			notifySelesai(t.Id, t.Judul, t.Divisi, t.Pembuat, input.Role, source)
+		}
+
+		config.DB.Save(&t)
+		config.DB.Where("tugas_id = ?", fmt.Sprint(t.Id)).Delete(&models.Notification{})
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": t})
 		return
 	}
 
-	// NOTIFICATION LOGIC BASED ON ROLE
-	if input.Role == "staff" {
-		// If Staff finished -> Notify Katimja (Reviewer)
-		var katimjas []models.Katimja
-		if err := config.DB.Where("divisi = ?", tugas.Divisi).Find(&katimjas).Error; err == nil {
-			for _, k := range katimjas {
-				go CreateNotification(fmt.Sprint(tugas.Id), fmt.Sprintf("katimja-%d", k.Id), "Tugas Selesai (Staff)", fmt.Sprintf("Staff telah menyelesaikan tugas '%s'. Harap diperiksa.", tugas.Judul), "unread")
+	// Default/Katimja
+	var t models.Tugas_Katimja
+	if err := config.DB.First(&t, id).Error; err != nil {
+		// Retry Atasan if source missing?
+		var t2 models.Tugas_Atasan
+		if err := config.DB.First(&t2, id).Error; err == nil {
+			// Found in Atasan
+			if input.FileSelesai != "" {
+				t2.FileSelesai = input.FileSelesai
 			}
-		}
-	} else if input.Role == "katimja" {
-		// If Katimja verified/finished -> Notify Atasan (Pembuat)
-		// Assuming Pembuat name is unique or we can find Atasan by name
-		// Ideally we have PembuatID, but user only stores Check string.
-		// Broadcast to all Atasan or try to find specific one.
-		var atasans []models.Atasan
-		config.DB.Find(&atasans)
-		for _, u := range atasans {
-			// Optional: Filter by name if needed, e.g. if u.Nama == tugas.Pembuat
-			if tugas.Pembuat == "" || u.Nama == tugas.Pembuat {
-				go CreateNotification(fmt.Sprint(tugas.Id), fmt.Sprintf("atasan-%d", u.Id), "Tugas Selesai (Katimja)", fmt.Sprintf("Katimja telah memverifikasi tugas '%s'.", tugas.Judul), "unread")
+			if input.Uploader != "" {
+				t2.FileSelesaiOleh = input.Uploader
 			}
+			t2.Status = "Menunggu Review"
+			config.DB.Save(&t2)
+			config.DB.Where("tugas_id = ?", fmt.Sprint(t2.Id)).Delete(&models.Notification{})
+			notifySelesai(t2.Id, t2.Judul, t2.Divisi, t2.Pembuat, input.Role, "atasan")
+			c.JSON(http.StatusOK, gin.H{"status": "success", "data": t2})
+			return
 		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas not found"})
+		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Tugas selesai", "data": tugas})
+	if input.FileSelesai != "" {
+		t.FileSelesai = input.FileSelesai
+	}
+	if input.Uploader != "" {
+		t.FileSelesaiOleh = input.Uploader
+	}
+	t.Status = "Menunggu Review"
+	config.DB.Save(&t)
+	config.DB.Where("tugas_id = ?", fmt.Sprint(t.Id)).Delete(&models.Notification{})
+	notifySelesai(t.Id, t.Judul, t.Divisi, t.Pembuat, input.Role, "katimja")
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": t})
 }
 
-// UpdateTugasRespon handles Atasan's response/revision
+// UpdateTugasRespon
 func UpdateTugasRespon(c *gin.Context) {
 	id := c.Param("id")
-	var tugas models.Tugas
-	if err := config.DB.First(&tugas, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
-		return
-	}
+	source := c.Query("source") // atasan or katimja (task source)
 
 	var input struct {
 		Respon     string `json:"respon"`
 		FileRespon string `json:"file_respon"`
 	}
-
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
 		return
 	}
 
-	tugas.Respon = input.Respon
-	if input.FileRespon != "" {
-		tugas.FileRespon = input.FileRespon
-	}
-
-	// Update Status if needed (e.g. back to In Progress or Revision)
-	tugas.Status = "Revisi"
-
-	if err := config.DB.Save(&tugas).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan respon"})
+	if source == "katimja" { // Responding to Katimja Task
+		var t models.Tugas_Katimja
+		if err := config.DB.First(&t, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Tugas not found"})
+			return
+		}
+		t.Respon = input.Respon
+		if input.FileRespon != "" {
+			t.FileRespon = input.FileRespon
+		}
+		t.Status = "Revisi"
+		config.DB.Save(&t)
+		notifyRespon(t.Id, t.Penerima, t.Divisi, t.Judul, input.Respon, "katimja")
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": t})
 		return
 	}
 
-	// NOTIFIKASI
-	// Kirim notifikasi ke Penerima (Staff/Katimja)
-	// Kita perlu tahu ID user penerima.
-	// Logic sederhana: cari di Staff atau Katimja berdasarkan nama 'Penerima' or 'Divisi'
-	go func(tId uint, tugasData models.Tugas, msg string) {
-		// 1. Notify Staff (Penerima)
-		var staff models.Staff
-		if err := config.DB.Where("nama = ?", tugasData.Penerima).First(&staff).Error; err == nil {
-			CreateNotification(fmt.Sprint(tId), fmt.Sprintf("staff-%d", staff.Id), "Respon Atasan", msg, "unread")
-		}
-
-		// 2. Notify Katimja (Supervisor) based on Divisi
-		var katimjas []models.Katimja
-		if err := config.DB.Where("divisi = ?", tugasData.Divisi).Find(&katimjas).Error; err == nil {
-			for _, k := range katimjas {
-				CreateNotification(fmt.Sprint(tId), fmt.Sprintf("katimja-%d", k.Id), "Respon Atasan", "Atasan telah mereview tugas staff Anda. Cek detail.", "unread")
-			}
-		}
-	}(tugas.Id, tugas, fmt.Sprintf("Atasan memberikan respon pada tugas '%s'. Cek detail tugas.", tugas.Judul))
-
-	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Respon berhasil dikirim", "data": tugas})
+	// Default Atasan
+	var t models.Tugas_Atasan
+	if err := config.DB.First(&t, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas not found"})
+		return
+	}
+	t.Respon = input.Respon
+	if input.FileRespon != "" {
+		t.FileRespon = input.FileRespon
+	}
+	t.Status = "Revisi"
+	config.DB.Save(&t)
+	notifyRespon(t.Id, t.Penerima, t.Divisi, t.Judul, input.Respon, "atasan")
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": t})
 }
 
-// UpdateTugas updates task details (e.g. assigning to staff)
+// UpdateTugas (Assign)
 func UpdateTugas(c *gin.Context) {
 	id := c.Param("id")
-	var tugas models.Tugas
-	if err := config.DB.First(&tugas, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
-		return
-	}
+	source := c.Query("source")
 
 	var input struct {
 		Penerima string `json:"penerima"`
 	}
-
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
 		return
 	}
 
-	if input.Penerima != "" {
-		tugas.Penerima = input.Penerima
-
-		// Notifikasi ke Staff yang baru ditunjuk
-		// Cari Staff berdasarkan Nama
+	if source == "katimja" {
+		var t models.Tugas_Katimja
+		if err := config.DB.First(&t, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Tugas not found"})
+			return
+		}
+		t.Penerima = input.Penerima
+		config.DB.Save(&t)
+		// Notify staff
 		var staff models.Staff
 		if err := config.DB.Where("nama = ?", input.Penerima).First(&staff).Error; err == nil {
-			go CreateNotification(fmt.Sprint(tugas.Id), fmt.Sprintf("staff-%d", staff.Id), "Tugas Baru", fmt.Sprintf("Anda ditugaskan pada: '%s'", tugas.Judul), "unread")
+			CreateNotification(fmt.Sprint(t.Id), fmt.Sprintf("staff-%d", staff.Id), "Tugas Baru", fmt.Sprintf("Anda ditugaskan pada: '%s'", t.Judul), "unread")
 		}
-	}
-
-	if err := config.DB.Save(&tugas).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update tugas"})
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": t})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success", "data": tugas})
+	// Default Atasan
+	var t models.Tugas_Atasan
+	if err := config.DB.First(&t, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas not found"})
+		return
+	}
+	t.Penerima = input.Penerima
+	config.DB.Save(&t)
+	var staff models.Staff
+	if err := config.DB.Where("nama = ?", input.Penerima).First(&staff).Error; err == nil {
+		CreateNotification(fmt.Sprint(t.Id), fmt.Sprintf("staff-%d", staff.Id), "Tugas Baru", fmt.Sprintf("Anda ditugaskan pada: '%s'", t.Judul), "unread")
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": t})
+}
+
+// ApproveTugas (For Atasan)
+func ApproveTugas(c *gin.Context) {
+	id := c.Param("id")
+	// Only for Atasan Tasks
+	var t models.Tugas_Atasan
+	if err := config.DB.First(&t, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas Atasan tidak ditemukan"})
+		return
+	}
+	t.Status = "Selesai"
+	config.DB.Save(&t)
+	config.DB.Where("tugas_id = ?", fmt.Sprint(t.Id)).Delete(&models.Notification{})
+	notifyApproved(t.Id, t.Judul, t.Divisi, t.Penerima, "atasan")
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Tugas berhasil disetujui", "data": t})
+}
+
+// ApproveTugasKatimja (For Katimja)
+func ApproveTugasKatimja(c *gin.Context) {
+	id := c.Param("id")
+	// Only for Katimja Tasks
+	var t models.Tugas_Katimja
+	if err := config.DB.First(&t, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas Katimja tidak ditemukan"})
+		return
+	}
+	t.Status = "Selesai"
+	config.DB.Save(&t)
+	config.DB.Where("tugas_id = ?", fmt.Sprint(t.Id)).Delete(&models.Notification{})
+	notifyApproved(t.Id, t.Judul, t.Divisi, t.Penerima, "katimja")
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Tugas berhasil disetujui", "data": t})
+}
+
+// --- Notification Helpers ---
+
+func sendNotifications(tId uint, source string, input TugasInput) {
+	// Common logic
+	judul := input.Judul
+	divisi := input.Divisi
+	penerima := input.Penerima
+
+	msgSuffix := " (Dari Atasan)"
+	if source == "katimja" {
+		msgSuffix = " (Dari Katimja)"
+	}
+
+	if divisi != "" && divisi != "Pilih Divisi" {
+		if source == "atasan" {
+			var katimjas []models.Katimja
+			if err := config.DB.Where("divisi = ? OR jabatan LIKE ?", divisi, "%"+divisi+"%").Find(&katimjas).Error; err == nil {
+				for _, u := range katimjas {
+					CreateNotification(fmt.Sprint(tId), fmt.Sprintf("katimja-%d", u.Id), "Tugas Baru", fmt.Sprintf("Tugas '%s' masuk ke divisi Anda.%s", judul, msgSuffix), "unread")
+				}
+			}
+		}
+		var staffs []models.Staff
+		config.DB.Where("jabatan LIKE ?", "%"+divisi+"%").Find(&staffs)
+		for _, u := range staffs {
+			CreateNotification(fmt.Sprint(tId), fmt.Sprintf("staff-%d", u.Id), "Tugas Baru", fmt.Sprintf("Tugas '%s' ditugaskan ke divisi Anda.%s", judul, msgSuffix), "unread")
+		}
+	}
+
+	if penerima != "" {
+		var staff models.Staff
+		if err := config.DB.Where("nama = ?", penerima).First(&staff).Error; err == nil {
+			CreateNotification(fmt.Sprint(tId), fmt.Sprintf("staff-%d", staff.Id), "Tugas Personal", fmt.Sprintf("Anda diberi tugas baru: '%s'", judul), "unread")
+		}
+	}
+}
+
+func notifySelesai(tId uint, judul, divisi, pembuat, role, source string) {
+	if role == "staff" {
+		var katimjas []models.Katimja
+		if err := config.DB.Where("divisi = ?", divisi).Find(&katimjas).Error; err == nil {
+			for _, k := range katimjas {
+				go CreateNotification(fmt.Sprint(tId), fmt.Sprintf("katimja-%d", k.Id), "Tugas Selesai (Staff)", fmt.Sprintf("Staff telah menyelesaikan tugas '%s'. Harap diperiksa.", judul), "unread")
+			}
+		}
+	} else if role == "katimja" && source == "atasan" {
+		var atasans []models.Atasan
+		config.DB.Find(&atasans)
+		for _, u := range atasans {
+			if pembuat == "" || u.Nama == pembuat {
+				go CreateNotification(fmt.Sprint(tId), fmt.Sprintf("atasan-%d", u.Id), "Tugas Butuh Persetujuan", fmt.Sprintf("Katimja telah meneruskan tugas '%s'. Menunggu persetujuan Anda.", judul), "unread")
+			}
+		}
+	}
+}
+
+func notifyRespon(tId uint, penerima, divisi, judul, msg, source string) {
+	var staff models.Staff
+	if err := config.DB.Where("nama = ?", penerima).First(&staff).Error; err == nil {
+		CreateNotification(fmt.Sprint(tId), fmt.Sprintf("staff-%d", staff.Id), "Respon Atasan", "Tugas direvisi/direspon.", "unread")
+	}
+	var katimjas []models.Katimja
+	if err := config.DB.Where("divisi = ?", divisi).Find(&katimjas).Error; err == nil {
+		for _, k := range katimjas {
+			CreateNotification(fmt.Sprint(tId), fmt.Sprintf("katimja-%d", k.Id), "Respon Atasan", "Tugas direvisi/direspon.", "unread")
+		}
+	}
+}
+
+func notifyApproved(tId uint, judul, divisi, penerima, source string) {
+	msg := fmt.Sprintf("Tugas '%s' telah disetujui.", judul)
+	var staff models.Staff
+	if err := config.DB.Where("nama = ?", penerima).First(&staff).Error; err == nil {
+		CreateNotification(fmt.Sprint(tId), fmt.Sprintf("staff-%d", staff.Id), "Tugas Disetujui", msg, "unread")
+	}
+	var katimjas []models.Katimja
+	if err := config.DB.Where("divisi = ?", divisi).Find(&katimjas).Error; err == nil {
+		for _, k := range katimjas {
+			CreateNotification(fmt.Sprint(tId), fmt.Sprintf("katimja-%d", k.Id), "Tugas Disetujui", msg, "unread")
+		}
+	}
 }

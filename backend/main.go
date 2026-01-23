@@ -211,6 +211,8 @@ func main() {
 	r.GET("/api/tugas/:id", controllers.GetTugasById)
 	r.PUT("/api/tugas/:id", controllers.UpdateTugas)
 	r.PUT("/api/tugas/:id/selesai", controllers.UpdateTugasSelesai)
+	r.PUT("/api/tugas/:id/approve", controllers.ApproveTugas)
+	r.PUT("/api/tugas/katimja/:id/approve", controllers.ApproveTugasKatimja)
 	r.PUT("/api/tugas/:id/respon", controllers.UpdateTugasRespon)
 
 	// -------------------------
@@ -219,6 +221,7 @@ func main() {
 	r.POST("/api/laporan", controllers.CreateLaporan)
 	r.GET("/api/laporan", controllers.GetAllLaporan)
 	r.GET("/api/laporan/:id", controllers.GetLaporanById)
+	r.PUT("/api/laporan/:id/ringkasan", controllers.UpdateRingkasan)
 
 	// -------------------------
 	// NOTIFICATION ROUTES

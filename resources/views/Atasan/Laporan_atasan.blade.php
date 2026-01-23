@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                         </a>
                                     `).join('')}
                                 </div>
-                                <button onclick="summarizeGroup(${indikatorId}, '${tw}')" 
+                                <button onclick="summarizeGroup(${indikatorId}, '${tw}', ${group.ids[0]})" 
                                         style="border:none; background:transparent; cursor:pointer; display:flex; flex-direction:column; align-items:center;" 
                                         title="Ringkas Semua Laporan ini dengan AI">
                                     <span style="font-size:16px;">✨</span>
@@ -150,14 +150,25 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function closeAiModal() {
     document.getElementById('aiModal').style.display = 'none';
+    // Reset to default state just in case
+    const contentDiv = document.getElementById('aiContent');
+    if (contentDiv) {
+        contentDiv.innerHTML = '<p id="aiResultText" style="font-size:14px; text-align:justify; line-height:1.5; color:#333;">...</p>';
+    }
 }
 
-async function summarizeGroup(indikatorId, triwulan) {
+async function summarizeGroup(indikatorId, triwulan, redirectId) {
     const modal = document.getElementById('aiModal');
-    const resultText = document.getElementById('aiResultText');
+    const contentDiv = document.getElementById('aiContent');
+    const footerDiv = document.getElementById('aiFooter');
+    const title = document.getElementById('aiTitle');
     
     modal.style.display = 'flex';
-    resultText.innerText = "Sedang menganalisis semua dokumen terkait dengan AI...";
+    
+    // Set Loading State
+    title.innerText = "Ringkasan AI";
+    contentDiv.innerHTML = '<div style="text-align:center; padding:20px;">sedang menganalisis dokumen...<br><span style="font-size:24px;">⏳</span></div>';
+    footerDiv.innerHTML = ''; 
 
     try {
         const formData = new FormData();
@@ -173,31 +184,63 @@ async function summarizeGroup(indikatorId, triwulan) {
         const data = await res.json();
 
         if (data.status === 'success') {
-            // Format hasil agar lebih rapi (ganti newline dengan <br>)
-            const formattedSummary = data.summary.replace(/\n/g, '<br>');
-            resultText.innerHTML = formattedSummary;
+            title.innerText = "Selesai!";
+            contentDiv.innerHTML = `
+                <div style="text-align:center; padding:10px;">
+                    <span style="font-size:50px; display:block; margin-bottom:10px;">✅</span>
+                    <p style="font-weight:600; font-size:16px;">AI sudah meringkas laporan tersebut!</p>
+                    <p style="font-size:13px; color:#555; margin-top:5px;">
+                        Silakan lihat detail laporan untuk melihat dokumen asli dan hasil ringkasan AI.
+                    </p>
+                </div>
+            `;
+            
+            // Show "Lihat Detail" button
+            footerDiv.innerHTML = `
+                <button onclick="closeAiModal()" style="margin-right:10px; padding:8px 16px; background:#ddd; border:none; border-radius:4px; font-weight:600; cursor:pointer;">
+                    Tutup
+                </button>
+                <a href="/atasan/laporan/${redirectId}?tab=summary" 
+                   style="padding:8px 16px; background:#48CAE4; color:white; border:none; border-radius:4px; font-weight:600; text-decoration:none; display:inline-block;">
+                   Lihat Detail
+                </a>
+            `;
+
         } else {
-            resultText.innerText = "Gagal: " + (data.message || 'Unknown error');
+            contentDiv.innerHTML = `<p style="color:red; text-align:center;">Gagal: ${data.message || 'Unknown error'}</p>`;
+            footerDiv.innerHTML = `
+                <button onclick="closeAiModal()" style="padding:8px 16px; background:#ddd; border:none; border-radius:4px; font-weight:600; cursor:pointer;">
+                    Tutup
+                </button>
+            `;
         }
 
     } catch (error) {
         console.error(error);
-        // Show detailed error if available
-        resultText.innerHTML = `<span style="color:red; font-weight:bold;">Error:</span> ${error.message}<br><br>Cek console browser untuk detail.`;
+        contentDiv.innerHTML = `<p style="color:red; font-weight:bold; text-align:center;">Error: ${error.message}</p>`;
+        footerDiv.innerHTML = `
+            <button onclick="closeAiModal()" style="padding:8px 16px; background:#ddd; border:none; border-radius:4px; font-weight:600; cursor:pointer;">
+                Tutup
+            </button>
+        `;
     }
 }
 </script>
 
 <!-- MODAL AI -->
 <div id="aiModal" style="display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-    <div style="background:white; padding:20px; border-radius:8px; width:90%; max-width:500px; position:relative;">
-        <h3 style="margin-top:0; margin-bottom:10px; font-weight:600;">Ringkasan AI</h3>
-        <p id="aiResultText" style="font-size:14px; text-align:justify; line-height:1.5; color:#333;">
-            ...
-        </p>
-        <button onclick="closeAiModal()" style="margin-top:15px; padding:8px 16px; background:#ddd; border:none; border-radius:4px; font-weight:600; cursor:pointer;">
-            Tutup
-        </button>
+    <div style="background:white; padding:20px; border-radius:8px; width:90%; max-width:400px; position:relative; display:flex; flex-direction:column; max-height:80vh;">
+        <h3 id="aiTitle" style="margin-top:0; margin-bottom:10px; font-weight:600; text-align:center;">Ringkasan AI</h3>
+        
+        <div id="aiContent" style="overflow-y:auto; flex:1; margin-bottom:15px;">
+            <p id="aiResultText" style="font-size:14px; text-align:justify; line-height:1.5; color:#333;">...</p>
+        </div>
+
+        <div id="aiFooter" style="display:flex; justify-content:center; padding-top:10px; border-top:1px solid #eee;">
+            <button onclick="closeAiModal()" style="padding:8px 16px; background:#ddd; border:none; border-radius:4px; font-weight:600; cursor:pointer;">
+                Tutup
+            </button>
+        </div>
     </div>
 </div>
 @endsection

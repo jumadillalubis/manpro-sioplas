@@ -133,6 +133,9 @@ Route::prefix('katimja')->group(function () {
     Route::post('/tugas/{id}/assign', [KatimjaController::class, 'assign'])
         ->name('katimja.tugas.assign');
 
+    Route::post('/tugas/{id}/approve', [KatimjaController::class, 'approveTugas'])
+        ->name('katimja.tugas.approve');
+
     Route::post('/laporan/upload', [KatimjaController::class, 'uploadLaporan'])
         ->name('katimja.laporan.upload');
 

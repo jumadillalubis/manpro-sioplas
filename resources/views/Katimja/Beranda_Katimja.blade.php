@@ -17,12 +17,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-gray-100 rounded-xl p-6">
                         <p class="text-sm text-gray-500 mb-1">Total Tugas</p>
-                        <p class="text-2xl font-bold text-gray-800">8 TUGAS</p>
+                        <p class="text-2xl font-bold text-gray-800">{{ $totalTugas ?? 0 }} TUGAS</p>
                     </div>
 
                     <div class="bg-gray-100 rounded-xl p-6">
                         <p class="text-sm text-gray-500 mb-1">Laporan Pegawai</p>
-                        <p class="text-2xl font-bold text-gray-800">15 Laporan</p>
+                        <p class="text-2xl font-bold text-gray-800">{{ $totalLaporan ?? 0 }} Laporan</p>
                     </div>
                 </div>
             </div>
@@ -92,7 +92,7 @@
         <div class="bg-gray-100 rounded-xl p-6 shadow-sm">
 
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-700">Daftar Tugas</h2>
+                <h2 class="text-lg font-semibold text-gray-700">Daftar Tugas Katimja</h2>
 
                 {{-- Filter Bulan --}}
                 <select class="bg-white border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none">
@@ -115,56 +115,34 @@
                     </thead>
 
                     <tbody class="divide-y">
-                        {{-- Accepted --}}
+                        @forelse($createdTasks as $task)
                         <tr>
-                            <td class="py-4 px-4 font-medium text-gray-800">Tinjau SOP Baru</td>
-                            <td class="py-4 px-4">22 Juli 2024</td>
+                            <td class="py-4 px-4 font-medium text-gray-800">{{ $task['judul'] }}</td>
+                            <td class="py-4 px-4">{{ $task['deadline'] }}</td>
                             <td class="py-4 px-4">
                                 <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-200 text-xs">
-                                    👤 Personal
+                                    @if($task['type'] === 'Personal') 👤 @else 👥 @endif {{ $task['type'] }}
                                 </span>
                             </td>
-                            <td class="py-4 px-4">T00128</td>
+                            <td class="py-4 px-4">{{ $task['id_tugas'] }}</td>
                             <td class="py-4 px-4">
-                                <span class="px-3 py-1 text-xs rounded-full bg-green-500 text-white">
-                                    Accepted
+                                @php
+                                    $color = 'bg-yellow-400 text-white'; // Default Pending
+                                    if(in_array($task['status'], ['Accepted', 'Selesai', 'Approved'])) $color = 'bg-green-500 text-white';
+                                    if(in_array($task['status'], ['Rejected', 'Revisi'])) $color = 'bg-red-500 text-white';
+                                @endphp
+                                <span class="px-3 py-1 text-xs rounded-full {{ $color }}">
+                                    {{ $task['status'] }}
                                 </span>
                             </td>
                         </tr>
-
-                        {{-- Pending --}}
+                        @empty
                         <tr>
-                            <td class="py-4 px-4 font-medium text-gray-800">Evaluasi Kinerja Tim</td>
-                            <td class="py-4 px-4">25 Juli 2024</td>
-                            <td class="py-4 px-4">
-                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-200 text-xs">
-                                    👥 Team
-                                </span>
-                            </td>
-                            <td class="py-4 px-4">T00125</td>
-                            <td class="py-4 px-4">
-                                <span class="px-3 py-1 text-xs rounded-full bg-yellow-400 text-white">
-                                    Pending
-                                </span>
+                            <td colspan="5" class="py-8 text-center text-gray-400">
+                                Belum ada tugas yang dibuat.
                             </td>
                         </tr>
-
-                        {{-- Rejected --}}
-                        <tr>
-                            <td class="py-4 px-4 font-medium text-gray-800">Rapat Koordinasi Proyek</td>
-                            <td class="py-4 px-4">28 Juli 2024</td>
-                            <td class="py-4 px-4">
-                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-200 text-xs">
-                                    👤 Personal
-                                </span>
-                            </td>
-                            <td class="py-4 px-4">T00132</td>
-                            <td class="py-4 px-4">
-                                <span class="px-3 py-1 text-xs rounded-full bg-red-500 text-white">
-                                    Rejected
-                                </span>
-                            </td>
-                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>

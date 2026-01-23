@@ -11,7 +11,56 @@ class StaffController extends Controller
 {
     public function beranda()
     {
-        return view('Staff.beranda_staff');
+        $nama = session('user_nama');
+        $divisi = session('user_divisi');
+
+        // 1. Fetch & Filter Tasks (Assigned to Me or My Division)
+        $assignedTasks = [];
+        $totalTugas = 0;
+        try {
+            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas');
+            if ($response->successful()) {
+                $data = $response->json()['data'] ?? [];
+                
+                // Filter Logic: Assigned to Me/Division AND Source is 'katimja'
+                $filtered = array_filter($data, function($item) use ($nama, $divisi) {
+                     $isPersonal = isset($item['penerima']) && $item['penerima'] === $nama;
+                     $isTeam = isset($item['penerima']) && $item['penerima'] === $divisi; // Assigned to Division Name
+                     $isDivisionTask = isset($item['divisi']) && $item['divisi'] === $divisi; // Assigned by Divisi field
+                     
+                     // Must be from Katimja
+                     $isFromKatimja = isset($item['source']) && $item['source'] === 'katimja';
+
+                     return ($isPersonal || $isTeam || $isDivisionTask) && $isFromKatimja;
+                });
+                
+                $totalTugas = count($filtered); // Total Assigned
+
+                // Format for Dashboard
+                foreach ($filtered as $item) {
+                    $assignedTasks[] = [
+                        'id' => $item['id'],
+                        'judul' => $item['judul'],
+                        'deadline' => \Carbon\Carbon::parse($item['deadline'])->translatedFormat('d F Y'),
+                        // Determine Type: if 'divisi' field is set, it's likely Team, else Personal? 
+                        // Or use 'type' field if available from backend (we added it recently)
+                        'type' => (!empty($item['divisi']) || (isset($item['type']) && $item['type'] == 'Team')) ? 'Team' : 'Personal',
+                        'status' => $item['status'] ?? 'Pending',
+                        'id_tugas' => 'T' . str_pad($item['id'], 5, '0', STR_PAD_LEFT)
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            // silent fail
+        }
+
+        // 2. Count Laporan (Optional, keep 0 if not needed or fetch if logic exists)
+        // Assuming Laporan model exists and has 'pembuat' or 'dibuat_oleh'? Or just count all?
+        // For now, let's just use a placeholder or previous logic if available.
+        $totalLaporan = 0; 
+        // Example: $totalLaporan = Laporan::where('pembuat', $nama)->count(); (need to verify model)
+
+        return view('Staff.beranda_staff', compact('assignedTasks', 'totalTugas', 'totalLaporan'));
     }
 
     public function laporan()
@@ -32,9 +81,15 @@ class StaffController extends Controller
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
                 
-                // Filter: Only assigned to me
-                $data = array_filter($data, function($item) use ($nama) {
-                     return isset($item['penerima']) && $item['penerima'] === $nama;
+                // Filter: Assigned to me OR my division
+                $data = array_filter($data, function($item) use ($nama, $divisi) {
+                     $isPersonal = isset($item['penerima']) && $item['penerima'] === $nama;
+                     $isTeam = isset($item['penerima']) && $item['penerima'] === $divisi; // If assigned to Division Name
+                     
+                     // Also check 'divisi' field if your backend uses it for assignment logic
+                     $isDivisionTask = isset($item['divisi']) && $item['divisi'] === $divisi;
+
+                     return $isPersonal || $isTeam || $isDivisionTask;
                 });
 
                 $tugas = array_map(function($item) {
@@ -44,7 +99,8 @@ class StaffController extends Controller
                        'status' => $item['status'] ?? 'Pending',
                        'tanggal_buat' => \Carbon\Carbon::parse($item['tanggal_buat_tugas'])->translatedFormat('d F Y'),
                        'tenggat' => $item['deadline'], 
-                       'kepada' => !empty($item['divisi']) ? $item['divisi'] : ($item['penerima'] ?? '-')
+                       'kepada' => !empty($item['divisi']) ? $item['divisi'] : ($item['penerima'] ?? '-'),
+                       'source' => $item['source'] ?? 'atasan'
                    ];
                 }, $data);
             }
@@ -55,11 +111,12 @@ class StaffController extends Controller
         return view('Staff.tugas_pegawai', compact('tugas'));
     }
 
-    public function detailTugas($id)
+    public function detailTugas(Request $request, $id)
     {
         $data_tugas = [];
+        $source = $request->query('source', 'atasan');
         try {
-            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas/' . $id);
+            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas/' . $id . '?source=' . $source);
             if ($response->successful()) {
                 $item = $response->json()['data'] ?? [];
                 $data_tugas = [
@@ -67,7 +124,13 @@ class StaffController extends Controller
                     'judul' => $item['judul'],
                     'batas_waktu' => \Carbon\Carbon::parse($item['deadline'])->translatedFormat('d F Y'),
                     'pegawai' => $item['penerima'],
-                    'deskripsi' => $item['deskripsi']
+                    'deskripsi' => $item['deskripsi'],
+                    'source' => $item['source'] ?? $source, // Pass source to view
+                    'file_tugas' => $item['file_tugas'] ?? null,
+                    'status' => $item['status'] ?? 'Pending',
+                    'file_selesai' => $item['file_selesai'] ?? null,
+                    'file_respon' => $item['file_respon'] ?? null,
+                    'respon' => $item['respon'] ?? null
                 ];
             }
         } catch (\Exception $e) {
@@ -163,10 +226,12 @@ class StaffController extends Controller
             $file->storeAs('tugas_selesai', $filename, 'public');
 
             // Call API to update status to "Selesai" and save filename
+            $source = $request->query('source', 'atasan');
             try {
-                \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/selesai', [
+                \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/selesai?source=' . $source, [
                    'file_selesai' => $filename,
-                   'role' => 'staff'
+                   'role' => 'staff',
+                   'uploader' => 'Staff ' . session('user_nama')
                 ]);
             } catch (\Exception $e) {
                 // ignore or log

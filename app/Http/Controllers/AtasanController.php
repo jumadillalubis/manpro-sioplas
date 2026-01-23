@@ -66,8 +66,26 @@ class AtasanController extends Controller
     public function beranda()
     {
         $katimjas = \App\Models\Katimja::all();
-        // Count tasks created by the current logged-in Atasan
-        $totalTugas = Tugas::where('pembuat', session('atasan_nama'))->count();
+        
+        // Fetch tasks from API
+        $totalTugas = 0;
+        try {
+            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas');
+            if ($response->successful()) {
+                $data = $response->json()['data'] ?? [];
+                $myName = session('atasan_nama');
+                
+                // Count tasks created by me (or generic 'Atasan')
+                $myTasks = array_filter($data, function($item) use ($myName) {
+                    $creator = $item['pembuat'] ?? '';
+                    return $creator === $myName || $creator === 'Atasan';
+                });
+                $totalTugas = count($myTasks);
+            }
+        } catch (\Exception $e) {
+            $totalTugas = 0;
+        }
+
         // Count all reports
         $totalLaporan = Laporan::count();
 
