@@ -10,6 +10,7 @@
     if ($status == 'Selesai') $statusClass = 'bg-green-100 text-green-800 border-green-200';
     if ($status == 'Revisi') $statusClass = 'bg-red-100 text-red-800 border-red-200';
     if ($status == 'Menunggu Review') $statusClass = 'bg-blue-100 text-blue-800 border-blue-200';
+    if ($status == 'Menunggu Approval') $statusClass = 'bg-purple-100 text-purple-800 border-purple-200';
 @endphp
 
 <div class="min-h-screen bg-gray-50 py-8 text-gray-800">
@@ -111,7 +112,7 @@
                     <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider mb-4">Penugasan Staff</h3>
                     <p class="text-sm text-gray-500 mb-4">Tugaskan staff di divisi Anda untuk mengerjakan tugas ini.</p>
                     
-                    <form action="{{ route('katimja.tugas.assign', $tugas['id']) }}" method="POST">
+                    <form action="{{ route('katimja.tugas.assign', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'atasan']) }}" method="POST">
                         @csrf
                         <div class="flex space-x-2">
                              <select name="penerima" class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
@@ -155,37 +156,95 @@
                         <div class="text-sm text-gray-500 italic mb-4">Belum ada file hasil pengerjaan.</div>
                     @endif
 
-                    {{-- UPLOAD FORM (Only if not Selesai/Approved, allow Katimja to upload/forward) --}}
+                    {{-- UPLOAD / ACTION FORM (Only if not Selesai/Approved, allow Katimja to approve or revise) --}}
                      @if($status != 'Selesai')
-                     <div class="border-t pt-4 mt-4">
+                       <div class="border-t pt-4 mt-4">
                         <h4 class="text-sm font-medium text-gray-900 mb-2">Aksi</h4>
                         
-                        {{-- Logic: Using server-side flags for robustness --}}
-                        
                         @if($tugas['is_me'])
-                            {{-- Button Approve for Katimja's own task --}}
-                            <form action="{{ route('katimja.tugas.approve', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'katimja']) }}" method="POST" class="mb-3">
-                                @csrf
-                                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none">
-                                    Approve
-                                </button>
-                            </form>
-                        @endif
+                            {{-- Button Approve & Revisi for Katimja's own task --}}
+                            <div class="space-y-3">
+                                <form action="{{ route('katimja.tugas.approve', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'katimja']) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-green-600 hover:bg-green-700 focus:outline-none cursor-pointer">
+                                        ✓ Approve Tugas
+                                    </button>
+                                </form>
 
-                        {{-- Form Upload (Forward/Revision) --}}
-                        <form action="{{ route('katimja.tugas.respon', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'atasan']) }}" method="POST" enctype="multipart/form-data">
-                            @csrf
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Upload File / Feedback Tambahan</label>
-                            <input type="file" name="upload-file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-3"/>
-                            
-                            <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
-                                @if($tugas['is_me'])
-                                    Update Feedback
-                                @else
-                                    Teruskan ke Atasan / Update Feedback
-                                @endif
-                            </button>
-                        </form>
+                                {{-- Toggle Minta Revisi button --}}
+                                <button type="button" id="btnKatimjaToggleRevision" onclick="toggleKatimjaRevisionForm()" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 focus:outline-none cursor-pointer">
+                                    📝 Minta Revisi
+                                </button>
+                            </div>
+
+                            {{-- Form Revisi / Feedback for Katimja's own task --}}
+                            <div id="katimjaRevisionForm" class="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200" style="display: none;">
+                                <h4 class="text-sm font-bold text-amber-800 mb-2">Form Catatan Revisi</h4>
+                                <form action="{{ route('katimja.tugas.respon', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'katimja']) }}" method="POST" enctype="multipart/form-data">
+                                    @csrf
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Catatan Revisi</label>
+                                        <textarea name="respon" rows="3" required placeholder="Tuliskan catatan revisi atau instruksi..." class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500 bg-white">{{ $tugas['respon'] ?? '' }}</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Lampiran File (Opsional)</label>
+                                        <input type="file" name="file_respon" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200"/>
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-2">
+                                        <button type="button" onclick="toggleKatimjaRevisionForm()" class="w-1/2 py-2 px-3 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                                            Batal
+                                        </button>
+                                        <button type="submit" class="w-1/2 py-2 px-3 rounded-md text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 cursor-pointer">
+                                            Kirim Revisi
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        @elseif($status === 'Menunggu Review')
+                            {{-- Single Form to Approve & Forward Atasan Task --}}
+                            <div class="space-y-3">
+                                <form action="{{ route('katimja.tugas.approve', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'atasan']) }}" method="POST" enctype="multipart/form-data">
+                                    @csrf
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Ganti File Hasil Pengerjaan (Opsional)</label>
+                                        <input type="file" name="upload-file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-2"/>
+                                        <p class="text-xs text-gray-400">Kosongkan jika ingin meneruskan file dari Staff tanpa perubahan.</p>
+                                    </div>
+                                    <button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-green-600 hover:bg-green-700 focus:outline-none cursor-pointer">
+                                        Setujui & Teruskan ke Atasan
+                                    </button>
+                                </form>
+
+                                {{-- Button Minta Revisi ke Staff --}}
+                                <button type="button" id="btnKatimjaToggleRevision" onclick="toggleKatimjaRevisionForm()" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 focus:outline-none cursor-pointer">
+                                    📝 Minta Revisi ke Staff
+                                </button>
+                            </div>
+
+                            {{-- Form Revisi to Staff --}}
+                            <div id="katimjaRevisionForm" class="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200" style="display: none;">
+                                <h4 class="text-sm font-bold text-amber-800 mb-2">Form Catatan Revisi ke Staff</h4>
+                                <form action="{{ route('katimja.tugas.respon', ['id' => $tugas['id'], 'source' => $tugas['source'] ?? 'atasan']) }}" method="POST" enctype="multipart/form-data">
+                                    @csrf
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Catatan Revisi</label>
+                                        <textarea name="respon" rows="3" required placeholder="Tuliskan catatan revisi untuk staf..." class="w-full p-2.5 text-sm border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500 bg-white">{{ $tugas['respon'] ?? '' }}</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Lampiran File (Opsional)</label>
+                                        <input type="file" name="file_respon" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200"/>
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-2">
+                                        <button type="button" onclick="toggleKatimjaRevisionForm()" class="w-1/2 py-2 px-3 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                                            Batal
+                                        </button>
+                                        <button type="submit" class="w-1/2 py-2 px-3 rounded-md text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 cursor-pointer">
+                                            Kirim Revisi
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        @endif
                      </div>
                      @endif
 
@@ -196,4 +255,23 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleKatimjaRevisionForm() {
+    const card = document.getElementById('katimjaRevisionForm');
+    const btn = document.getElementById('btnKatimjaToggleRevision');
+
+    if (card) {
+        if (card.style.display === 'none' || card.style.display === '') {
+            card.style.display = 'block';
+            if (btn) btn.style.display = 'none';
+            const textarea = card.querySelector('textarea');
+            if (textarea) textarea.focus();
+        } else {
+            card.style.display = 'none';
+            if (btn) btn.style.display = 'flex';
+        }
+    }
+}
+</script>
 @endsection

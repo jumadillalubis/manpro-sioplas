@@ -60,6 +60,7 @@ func MarkAsRead(c *gin.Context) {
 	}
 
 	notification.ReadAt = time.Now()
+	notification.Status = "read"
 	config.DB.Save(&notification)
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Notifikasi telah dibaca"})

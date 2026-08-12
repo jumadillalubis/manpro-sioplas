@@ -22,3 +22,8 @@ yarn-error.log
 __pycache__
 
 /venv
+.DS_Store
+*.exe
+/backend/app
+/backend/SIOPLAS.exe
+/backend/app.exe

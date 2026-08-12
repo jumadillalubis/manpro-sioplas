@@ -53,7 +53,7 @@ class NotificationController extends Controller
                         'title' => $item['judul'], 
                         'message' => $item['pesan'], 
                         'role' => 'user', 
-                        'is_read' => ($item['status'] ?? 'unread') !== 'unread',
+                        'is_read' => (($item['status'] ?? 'unread') !== 'unread') || (!empty($item['read_at']) && $item['read_at'] !== '0001-01-01T00:00:00Z'),
                         'url' => $url 
                     ];
                 });
@@ -73,4 +73,51 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->count();
     }
+
+    /**
+     * Tandai notifikasi sebagai dibaca dan redirect ke URL tujuan
+     */
+    public function markAsReadAndRedirect(Request $request, $id)
+    {
+        try {
+            // Panggil Go Backend untuk set read
+            \Illuminate\Support\Facades\Http::put("http://localhost:8080/api/notifications/{$id}/read");
+        } catch (\Exception $e) {
+            // Abaikan error jika backend mati, tetap redirect
+        }
+
+        $redirectUrl = $request->query('redirect', '#');
+        return redirect($redirectUrl);
+    }
+
+    /**
+     * Endpoint JSON ringan untuk polling notifikasi real-time dari JavaScript.
+     * Dipanggil setiap 30 detik oleh frontend tanpa reload halaman.
+     */
+    public function liveNotifications()
+    {
+        // Pastikan user sudah login (ada session)
+        if (!session('user_id')) {
+            return response()->json(['count' => 0, 'notifications' => []], 401);
+        }
+
+        $allNotifications = self::getNotifications();
+        $unread           = $allNotifications->where('is_read', false);
+
+        // Format notifikasi untuk dikirim ke JavaScript
+        $notifList = $unread->map(function ($notif) {
+            return [
+                'id'      => $notif['id'],
+                'title'   => $notif['title'],
+                'message' => $notif['message'],
+                'url'     => $notif['url'],
+            ];
+        })->values();
+
+        return response()->json([
+            'count'         => $unread->count(),
+            'notifications' => $notifList,
+        ]);
+    }
 }
+

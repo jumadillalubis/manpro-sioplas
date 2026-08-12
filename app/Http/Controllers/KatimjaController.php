@@ -31,7 +31,7 @@ class KatimjaController extends Controller
             }
         }
 
-        // 1. Hitung Total Tugas & Fetch Created Tasks
+        // 1. Hitung Total Tugas & Fetch Assigned Tasks
         $totalTugas = 0;
         $createdTasks = [];
         try {
@@ -39,22 +39,17 @@ class KatimjaController extends Controller
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
                 
-                // Filter for Total Count (Incoming + Created)
-                $filteredTotal = array_filter($data, function($item) use ($nama, $divisi) {
-                    $isPembuat = isset($item['pembuat']) && $item['pembuat'] === $nama;
-                    $isDivisi = isset($item['divisi']) && $item['divisi'] === $divisi;
-                    $isPenerima = isset($item['penerima']) && $item['penerima'] === $nama;
-                    return $isPembuat || $isDivisi || $isPenerima;
+                // Filter for "Daftar Tugas Katimja" (Assigned to Me or My Division, not created by me)
+                $assignedTasksRaw = array_filter($data, function($item) use ($nama, $divisi) {
+                     $isPembuat = isset($item['pembuat']) && $item['pembuat'] === $nama;
+                     $isDivisi = isset($item['divisi']) && $item['divisi'] === $divisi;
+                     $isPenerima = isset($item['penerima']) && $item['penerima'] === $nama;
+                     return ($isDivisi || $isPenerima) && !$isPembuat;
                 });
-                $totalTugas = count($filteredTotal);
-
-                // Filter for "Daftar Tugas Katimja" (Only Created by Me)
-                $createdTasksRaw = array_filter($data, function($item) use ($nama) {
-                     return isset($item['pembuat']) && $item['pembuat'] === $nama;
-                });
+                $totalTugas = count($assignedTasksRaw);
 
                 // Format for View
-                foreach ($createdTasksRaw as $item) {
+                foreach ($assignedTasksRaw as $item) {
                     $createdTasks[] = [
                         'id' => $item['id'],
                         'judul' => $item['judul'],
@@ -84,9 +79,32 @@ class KatimjaController extends Controller
     }
 
     // Menampilkan Laporan untuk Katimja
-    public function laporan()
+    public function laporan(Request $request)
     {
-        return view('Katimja.Laporan_Katimja');
+        $divisi = session('user_divisi');
+        if (empty($divisi)) {
+            $jabatan = session('user_jabatan');
+            $divisionMap = [
+                'Tata Usaha' => 'Tata Usaha', 
+                'Produksi Primer' => 'Produksi Primer', 
+                'Pasca Panen' => 'Pasca Panen', 
+                'Labor' => 'Labor',
+                'Lab' => 'Labor'
+            ];
+            foreach ($divisionMap as $key => $val) {
+                if (stripos($jabatan, $key) !== false) {
+                    $divisi = $val;
+                    break;
+                }
+            }
+        }
+
+        $tahun = $request->query('tahun', date('Y'));
+        $laporan = \App\Models\Laporan::where('devisi', $divisi)
+            ->whereYear('tanggal', $tahun)
+            ->get();
+            
+        return view('Katimja.Laporan_Katimja', compact('laporan', 'tahun'));
     }
 
     // Menampilkan Daftar Tugas untuk Katimja
@@ -292,41 +310,39 @@ class KatimjaController extends Controller
         }
     }
 
-    // Menyimpan Respon Tugas (Upload File & Kirim ke Atasan)
+    // Menyimpan Respon / Revisi Tugas
     public function respon(Request $request, $id)
     {
         $request->validate([
-            'upload-file' => 'nullable|file|max:10240'
+            'respon' => 'nullable|string',
+            'upload-file' => 'nullable|file|max:10240',
+            'file_respon' => 'nullable|file|max:10240'
         ]);
 
         $filename = "";
-        if ($request->hasFile('upload-file')) {
-            $file = $request->file('upload-file');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->storeAs('tugas_selesai', $filename, 'public');
+        $fileObj = $request->file('upload-file') ?? $request->file('file_respon');
+        if ($fileObj) {
+            $filename = time() . '_' . $fileObj->getClientOriginalName();
+            $fileObj->storeAs('tugas_respon', $filename, 'public');
         }
 
-        // Kirim ke Backend API untuk update status & file
-        // Kirim ke Backend API untuk update status & file
-        // Pass source from request query or input
-        $source = $request->query('source', 'atasan'); 
+        $source = $request->query('source', 'katimja'); 
 
         try {
-            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/selesai?source=' . $source, [
-                'file_selesai' => $filename,
-                'role' => 'katimja',
-                'uploader' => 'Katimja ' . session('user_nama')
+            $response = \Illuminate\Support\Facades\Http::put('http://localhost:8080/api/tugas/' . $id . '/respon?source=' . $source, [
+                'respon' => $request->respon ?? 'Minta Revisi',
+                'file_respon' => $filename
             ]);
 
-                if ($response->successful()) {
-                    return back()->with('success', 'Tugas berhasil dikirim ke Atasan!');
-                } else {
-                    return back()->with('error', 'Gagal update status di server.');
-                }
-            } catch (\Exception $e) {
-                return back()->with('error', 'Terjadi kesalahan koneksi ke server.');
+            if ($response->successful()) {
+                return back()->with('success', 'Catatan revisi berhasil dikirim!');
+            } else {
+                return back()->with('error', 'Gagal mengirim revisi ke server.');
             }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Terjadi kesalahan koneksi ke server.');
         }
+    }
     // Assign Tugas ke Staff
     public function assign(Request $request, $id)
     {
@@ -372,7 +388,22 @@ class KatimjaController extends Controller
             'indikator_id' => 'required',
             'tw' => 'required',
             'file' => 'required|mimes:pdf,doc,docx,xlsx,jpg,png|max:5120',
+            'tahun' => 'nullable|integer',
         ]);
+
+        $divisi = session('user_divisi') ?? 'Unknown';
+        $tahun = $request->input('tahun', date('Y'));
+
+        // Cek jika laporan sudah ada untuk indikator, triwulan, devisi, dan tahun ini
+        $existing = \App\Models\Laporan::where('indikator_id', $request->indikator_id)
+            ->where('triwulan', $request->tw)
+            ->where('devisi', $divisi)
+            ->whereYear('tanggal', $tahun)
+            ->first();
+            
+        if ($existing && ($existing->status === 'disetujui' || $existing->status === 'Terverifikasi')) {
+            return back()->with('error', 'Laporan triwulan ini telah disetujui oleh Atasan dan tidak dapat diubah.');
+        }
 
         \Illuminate\Support\Facades\Log::info('Validation Passed');
 
@@ -380,30 +411,56 @@ class KatimjaController extends Controller
         $filename = time() . '_' . $file->getClientOriginalName();
         $file->storeAs('laporan', $filename, 'public');
 
+        $tanggal = now()->setYear($tahun);
+
         try {
-            // Logic Save to DB (Same as Staff)
-            \App\Models\Laporan::updateOrCreate(
-                [
-                    'indikator_id' => $request->indikator_id,
-                    'triwulan' => $request->tw,
-                ],
-                [
+            if ($existing) {
+                $existing->update([
                     'lampiran' => 'laporan/' . $filename,
                     'status' => 'Menunggu Verifikasi',
-                    'devisi' => session('user_divisi') ?? 'Unknown',
-                    'tanggal' => now(),
-                ]
-            );
+                    'tanggal' => $tanggal,
+                ]);
+            } else {
+                \App\Models\Laporan::create([
+                    'indikator_id' => $request->indikator_id,
+                    'triwulan' => $request->tw,
+                    'devisi' => $divisi,
+                    'lampiran' => 'laporan/' . $filename,
+                    'status' => 'Menunggu Verifikasi',
+                    'tanggal' => $tanggal,
+                ]);
+            }
         } catch (\Exception $e) {
             dd($e->getMessage());
         }
 
         return back()->with('success', 'File laporan berhasil diupload!');
     }
-    public function approveTugas($id)
+    public function approveTugas(Request $request, $id)
     {
-        // Call Go API to approve task (Katimja specific)
-        $response = \Illuminate\Support\Facades\Http::put("http://localhost:8080/api/tugas/katimja/{$id}/approve");
+        $source = $request->query('source', 'katimja');
+
+        if ($source === 'atasan') {
+            $filename = "";
+            if ($request->hasFile('upload-file')) {
+                $file = $request->file('upload-file');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->storeAs('tugas_selesai', $filename, 'public');
+            }
+
+            $payload = [
+                'role' => 'katimja',
+                'uploader' => 'Katimja ' . session('user_nama')
+            ];
+            if ($filename !== "") {
+                $payload['file_selesai'] = $filename;
+            }
+
+            $response = \Illuminate\Support\Facades\Http::put("http://localhost:8080/api/tugas/{$id}/selesai?source=atasan", $payload);
+        } else {
+            // Call Go API to approve task (Katimja specific)
+            $response = \Illuminate\Support\Facades\Http::put("http://localhost:8080/api/tugas/katimja/{$id}/approve");
+        }
 
         if ($response->successful()) {
             return redirect()->back()->with('success', 'Tugas berhasil disetujui!');

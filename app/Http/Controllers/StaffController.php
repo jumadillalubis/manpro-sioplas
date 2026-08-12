@@ -14,6 +14,25 @@ class StaffController extends Controller
         $nama = session('user_nama');
         $divisi = session('user_divisi');
 
+        // Prioritas 2: Tebak dari jabatan jika session kosong
+        if (empty($divisi)) {
+            $jabatan = session('user_jabatan');
+            $divisionMap = [
+                'Tata Usaha' => 'Tata Usaha', 
+                'Produksi Primer' => 'Produksi Primer', 
+                'Pasca Panen' => 'Pasca Panen', 
+                'Labor' => 'Labor',
+                'Lab' => 'Labor'
+            ];
+
+            foreach ($divisionMap as $key => $val) {
+                if (stripos($jabatan, $key) !== false) {
+                    $divisi = $val;
+                    break;
+                }
+            }
+        }
+
         // 1. Fetch & Filter Tasks (Assigned to Me or My Division)
         $assignedTasks = [];
         $totalTugas = 0;
@@ -22,16 +41,20 @@ class StaffController extends Controller
             if ($response->successful()) {
                 $data = $response->json()['data'] ?? [];
                 
-                // Filter Logic: Assigned to Me/Division AND Source is 'katimja'
+                // Filter Logic: Assigned to Me/Division
                 $filtered = array_filter($data, function($item) use ($nama, $divisi) {
                      $isPersonal = isset($item['penerima']) && $item['penerima'] === $nama;
                      $isTeam = isset($item['penerima']) && $item['penerima'] === $divisi; // Assigned to Division Name
                      $isDivisionTask = isset($item['divisi']) && $item['divisi'] === $divisi; // Assigned by Divisi field
-                     
-                     // Must be from Katimja
-                     $isFromKatimja = isset($item['source']) && $item['source'] === 'katimja';
 
-                     return ($isPersonal || $isTeam || $isDivisionTask) && $isFromKatimja;
+                     $source = $item['source'] ?? 'atasan';
+                     if ($source === 'atasan') {
+                         // Staff only sees Atasan task if delegated directly to them
+                         return $isPersonal;
+                     } else {
+                         // Staff sees Katimja task if assigned directly to them or to their division
+                         return $isPersonal || $isTeam || $isDivisionTask;
+                     }
                 });
                 
                 $totalTugas = count($filtered); // Total Assigned
@@ -54,24 +77,70 @@ class StaffController extends Controller
             // silent fail
         }
 
-        // 2. Count Laporan (Optional, keep 0 if not needed or fetch if logic exists)
-        // Assuming Laporan model exists and has 'pembuat' or 'dibuat_oleh'? Or just count all?
-        // For now, let's just use a placeholder or previous logic if available.
-        $totalLaporan = 0; 
-        // Example: $totalLaporan = Laporan::where('pembuat', $nama)->count(); (need to verify model)
+        // 2. Hitung Total Laporan (berdasarkan divisi)
+        $totalLaporan = 0;
+        try {
+            if ($divisi) {
+                $totalLaporan = Laporan::where('devisi', $divisi)->count();
+            }
+        } catch (\Exception $e) {
+            $totalLaporan = 0;
+        }
 
         return view('Staff.beranda_staff', compact('assignedTasks', 'totalTugas', 'totalLaporan'));
     }
 
-    public function laporan()
+    public function laporan(Request $request)
     {
-        return view('Staff.laporan_pegawai');
+        $divisi = session('user_divisi');
+        if (empty($divisi)) {
+            $jabatan = session('user_jabatan');
+            $divisionMap = [
+                'Tata Usaha' => 'Tata Usaha', 
+                'Produksi Primer' => 'Produksi Primer', 
+                'Pasca Panen' => 'Pasca Panen', 
+                'Labor' => 'Labor',
+                'Lab' => 'Labor'
+            ];
+            foreach ($divisionMap as $key => $val) {
+                if (stripos($jabatan, $key) !== false) {
+                    $divisi = $val;
+                    break;
+                }
+            }
+        }
+        
+        $tahun = $request->query('tahun', date('Y'));
+        $laporan = Laporan::where('devisi', $divisi)
+            ->whereYear('tanggal', $tahun)
+            ->get();
+
+        return view('Staff.laporan_pegawai', compact('laporan', 'tahun'));
     }
 
     public function tugas()
     {
         $nama = session('user_nama');
         $divisi = session('user_divisi'); 
+
+        // Prioritas 2: Tebak dari jabatan jika session kosong
+        if (empty($divisi)) {
+            $jabatan = session('user_jabatan');
+            $divisionMap = [
+                'Tata Usaha' => 'Tata Usaha', 
+                'Produksi Primer' => 'Produksi Primer', 
+                'Pasca Panen' => 'Pasca Panen', 
+                'Labor' => 'Labor',
+                'Lab' => 'Labor'
+            ];
+
+            foreach ($divisionMap as $key => $val) {
+                if (stripos($jabatan, $key) !== false) {
+                    $divisi = $val;
+                    break;
+                }
+            }
+        }
 
         $tugas = [];
         try {
@@ -89,7 +158,14 @@ class StaffController extends Controller
                      // Also check 'divisi' field if your backend uses it for assignment logic
                      $isDivisionTask = isset($item['divisi']) && $item['divisi'] === $divisi;
 
-                     return $isPersonal || $isTeam || $isDivisionTask;
+                     $source = $item['source'] ?? 'atasan';
+                     if ($source === 'atasan') {
+                         // Staff only sees Atasan task if delegated directly to them
+                         return $isPersonal;
+                     } else {
+                         // Staff sees Katimja task if assigned directly to them or to their division
+                         return $isPersonal || $isTeam || $isDivisionTask;
+                     }
                 });
 
                 $tugas = array_map(function($item) {
@@ -113,7 +189,6 @@ class StaffController extends Controller
 
     public function detailTugas(Request $request, $id)
     {
-        $data_tugas = [];
         $source = $request->query('source', 'atasan');
         try {
             $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas/' . $id . '?source=' . $source);
@@ -132,12 +207,13 @@ class StaffController extends Controller
                     'file_respon' => $item['file_respon'] ?? null,
                     'respon' => $item['respon'] ?? null
                 ];
+                return view('Staff.detail_tugas', compact('data_tugas'));
             }
         } catch (\Exception $e) {
             // handle error
         }
 
-        return view('Staff.detail_tugas', compact('data_tugas'));
+        return redirect()->route('tugas.staff')->with('error', 'Tugas tidak ditemukan.');
     }
 
     public function settings()
@@ -177,11 +253,28 @@ class StaffController extends Controller
             'indikator_id' => 'required',
             'tw' => 'required',
             'file' => 'required|mimes:pdf,doc,docx,xlsx,jpg,png|max:5120',
+            'tahun' => 'nullable|integer',
         ]);
+
+        $divisi = session('user_divisi') ?? 'Unknown';
+        $tahun = $request->input('tahun', date('Y'));
+
+        // Cek jika laporan sudah ada untuk indikator, triwulan, devisi, dan tahun ini
+        $existing = Laporan::where('indikator_id', $request->indikator_id)
+            ->where('triwulan', $request->tw)
+            ->where('devisi', $divisi)
+            ->whereYear('tanggal', $tahun)
+            ->first();
+            
+        if ($existing && ($existing->status === 'disetujui' || $existing->status === 'Terverifikasi')) {
+            return back()->with('error', 'Laporan triwulan ini telah disetujui oleh Atasan dan tidak dapat diubah.');
+        }
 
         $file = $request->file('file');
         $filename = time() . '_' . $file->getClientOriginalName();
         $file->storeAs('laporan', $filename, 'public');
+
+        $tanggal = now()->setYear($tahun);
 
         // Logic Save to DB (Laporan Table)
         try {
@@ -191,20 +284,22 @@ class StaffController extends Controller
                 'filename' => $filename
             ]);
 
-            $laporan = Laporan::updateOrCreate(
-                [
-                    'indikator_id' => $request->indikator_id,
-                    'triwulan' => $request->tw,
-                ],
-                [
+            if ($existing) {
+                $existing->update([
                     'lampiran' => 'laporan/' . $filename,
                     'status' => 'Menunggu Verifikasi',
-                    'devisi' => session('user_divisi') ?? 'Unknown',
-                    'tanggal' => now(),
-                ]
-            );
-            
-            \Illuminate\Support\Facades\Log::info('Laporan saved:', $laporan->toArray());
+                    'tanggal' => $tanggal,
+                ]);
+            } else {
+                Laporan::create([
+                    'indikator_id' => $request->indikator_id,
+                    'triwulan' => $request->tw,
+                    'devisi' => $divisi,
+                    'lampiran' => 'laporan/' . $filename,
+                    'status' => 'Menunggu Verifikasi',
+                    'tanggal' => $tanggal,
+                ]);
+            }
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error saving Laporan: ' . $e->getMessage());

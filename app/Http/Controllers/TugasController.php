@@ -48,13 +48,26 @@ class TugasController extends Controller
     {
         $staff = [];
         try {
-            $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/staff');
-            if ($response->successful()) {
-                $data = $response->json()['data'] ?? [];
-                $staff = array_map(function($item) {
-                    return (object) $item;
-                }, $data);
+            // Fetch Staff
+            $responseStaff = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/staff');
+            $staffData = [];
+            if ($responseStaff->successful()) {
+                $staffData = $responseStaff->json()['data'] ?? [];
             }
+
+            // Fetch Katimja
+            $responseKatimja = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/katimja');
+            $katimjaData = [];
+            if ($responseKatimja->successful()) {
+                $katimjaData = $responseKatimja->json()['data'] ?? [];
+            }
+
+            // Merge both
+            $combined = array_merge($staffData, $katimjaData);
+
+            $staff = array_map(function($item) {
+                return (object) $item;
+            }, $combined);
         } catch (\Exception $e) {
             // handle error
         }
@@ -142,14 +155,13 @@ class TugasController extends Controller
                     'respon' => $data['respon'] ?? null,
                     'file_respon' => $data['file_respon'] ?? null,
                 ];
-            } else {
-                $tugas = [];
+                return view('Atasan.tugas_detail', compact('tugas'));
             }
         } catch (\Exception $e) {
-            $tugas = [];
+            // handle error
         }   
 
-        return view('Atasan.tugas_detail', compact('tugas'));
+        return redirect()->route('tugas.index')->with('error', 'Tugas tidak ditemukan.');
     }
 
     public function approve($id)
@@ -171,7 +183,6 @@ class TugasController extends Controller
 
     public function lihat($id)
     {
-        $tugas = [];
         try {
             $response = \Illuminate\Support\Facades\Http::get('http://localhost:8080/api/tugas/' . $id);
             
@@ -205,12 +216,13 @@ class TugasController extends Controller
                     ];
                 }
 
+                return view('Atasan.tugas_lihat', compact('tugas'));
             }
         } catch (\Exception $e) {
             // handle error
         }
 
-        return view('Atasan.tugas_lihat', compact('tugas'));
+        return redirect()->route('tugas.index')->with('error', 'Tugas tidak ditemukan.');
     }
 
     public function respon(Request $request, $id)

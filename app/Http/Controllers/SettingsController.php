@@ -22,30 +22,50 @@ class SettingsController extends Controller
         return view('settings.password');
     }
 
-    /**
-     * Proses update password
-     */
     public function updatePassword(Request $request)
     {
         $request->validate([
             'password_lama' => 'required',
-            'password_baru' => 'required|min:6|confirmed',
+            'password_baru' => 'required|min:4|confirmed',
         ]);
 
-        $user = auth()->user();
+        $nama = session('user_nama') ?? session('atasan_nama');
 
-        if (!$user) {
-            return back()->withErrors(['user' => 'User tidak ditemukan']);
+        if (empty($nama)) {
+            return back()->with('error', 'Sesi Anda telah habis. Silakan login kembali.');
         }
 
-        if (!\Hash::check($request->password_lama, $user->password)) {
-            return back()->withErrors(['password_lama' => 'Password lama salah']);
+        // Verifikasi password lama terlebih dahulu via Go Backend login check
+        try {
+            $loginCheck = \Illuminate\Support\Facades\Http::post('http://localhost:8080/api/login', [
+                'username' => $nama,
+                'password' => $request->password_lama,
+            ]);
+
+            if (!$loginCheck->successful() || ($loginCheck->json()['status'] ?? '') !== 'otp_sent') {
+                return back()->with('error', 'Password lama yang Anda masukkan salah.');
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Tidak dapat terhubung ke server backend untuk verifikasi.');
         }
 
-        $user->password = \Hash::make($request->password_baru);
-        $user->save();
+        // Update password via Go Backend (menggunakan endpoint reset-password yang sudah terbukti berfungsi)
+        try {
+            $response = \Illuminate\Support\Facades\Http::post('http://localhost:8080/api/reset-password', [
+                'name' => $nama,
+                'new_password' => $request->password_baru,
+            ]);
 
-        return redirect()->route('settings')
-            ->with('success', 'Password berhasil diubah');
+            if ($response->successful()) {
+                return redirect()->route('settings')
+                    ->with('success', 'Password berhasil diubah! Silakan gunakan password baru saat login berikutnya.');
+            } else {
+                $errorMsg = $response->json()['error'] ?? 'Gagal mengubah password.';
+                return back()->with('error', $errorMsg);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Tidak dapat terhubung ke server backend. Silakan coba lagi.');
+        }
     }
 }
+

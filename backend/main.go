@@ -230,9 +230,16 @@ func main() {
 	r.PUT("/api/notifications/:id/read", controllers.MarkAsRead)
 
 	// -------------------------
-	// AI SERVICE ROUTES
+	// OTP / 2FA ROUTES
 	// -------------------------
+	// -------------------------
+	// NOTE / CATATAN PRIBADI
+	// -------------------------
+	r.GET("/api/note", controllers.GetUserNote)
+	r.POST("/api/note", controllers.SaveUserNote)
+
 	r.POST("/api/ai/summarize", controllers.SummarizePDF)
+	r.POST("/api/ai/summarize-yearly", controllers.SummarizeYearly)
 
 	// -------------------------
 	// Jalankan server

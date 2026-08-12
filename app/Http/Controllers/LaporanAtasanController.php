@@ -5,19 +5,26 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Laporan;
 use App\Models\Staff;
+use App\Models\YearlySummary;
 
 class LaporanAtasanController extends Controller
 {
     /**
      * Menampilkan daftar laporan semua staff (halaman utama laporan atasan)
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Ambil semua laporan dengan relasi staff
-        $laporan = Laporan::with('staff')->get();
+        $tahun = $request->query('tahun', date('Y'));
+        
+        // Ambil semua laporan dengan relasi staff difilter berdasarkan tahun
+        $laporan = Laporan::with('staff')
+            ->whereYear('tanggal', $tahun)
+            ->get();
 
+        // Ambil rangkuman tahunan jika ada
+        $yearlySummary = YearlySummary::where('tahun', $tahun)->first();
 
-        return view('atasan.laporan_atasan', compact('laporan'));
+        return view('atasan.laporan_atasan', compact('laporan', 'tahun', 'yearlySummary'));
     }
 
     /**

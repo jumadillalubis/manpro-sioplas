@@ -51,6 +51,9 @@ func ConnectDatabase() {
 		&models.PengumpulanLaporan{},
 		&models.Laporan{},
 		&models.Notification{},
+		&models.YearlySummary{},
+		&models.OTP{},      // Tabel OTP untuk fitur 2FA
+		&models.UserNote{}, // Tabel Catatan Pribadi
 	)
 	if err != nil {
 		log.Fatal("❌ Gagal migrasi tabel:", err)

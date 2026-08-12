@@ -3,10 +3,24 @@
 @section('content')
     <div class="p-6 bg-white">
 
+        {{-- FILTER TAHUN --}}
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-800">Laporan Perjanjian Kinerja</h2>
+            
+            <div class="flex items-center gap-3">
+                <label for="filterTahun" class="text-sm font-medium text-gray-700">Filter Tahun:</label>
+                <select id="filterTahun" onchange="filterByYear(this.value)" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-white cursor-pointer">
+                    @for ($y = date('Y'); $y >= 2021; $y--)
+                        <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
+                    @endfor
+                </select>
+            </div>
+        </div>
+
         {{-- HEADER BIRU --}}
-        <div class="w-full bg-cyan-400 px-6 py-4 mb-6">
+        <div class="w-full bg-cyan-400 px-6 py-4 mb-6 rounded-lg">
             <h1 class="text-white text-lg font-semibold uppercase tracking-wide text-center">
-                PERJANJIAN KINERJA TAHUN 2025 BADAN MUTU KKP PEKANBARU
+                PERJANJIAN KINERJA TAHUN {{ $tahun }} BADAN MUTU KKP PEKANBARU
             </h1>
         </div>
 
@@ -46,6 +60,11 @@
                             'Persentase Hasil Kelautan dan Perikanan Sektor Produksi Pasca Panen yang Memenuhi Standar Mutu dan Keamanan Pangan Lingkup UPT Stasiun KIPM Pekanbaru (%)',
                             'Persentase Hasil Kelautan dan Perikanan Sektor Produksi Primer yang Memenuhi Standar Mutu dan Keamanan Pangan Lingkup UPT Stasiun KIPM Pekanbaru (%)',
                         ];
+
+                        $laporansIndexed = [];
+                        foreach ($laporan as $lap) {
+                            $laporansIndexed[$lap->indikator_id][$lap->triwulan] = $lap;
+                        }
                     @endphp
 
                     @foreach ($indikator as $i => $row)
@@ -54,10 +73,46 @@
                             <td class="border border-black px-3 py-3">{{ $row }}</td>
 
                             @for ($tw = 1; $tw <= 4; $tw++)
-                                <td class="border border-black text-center">
-                                    <button class="open-upload-modal" data-indikator-id="{{ $i + 1 }}" data-tw="TW{{ $tw }}">
-                                        ⬆️
-                                    </button>
+                                @php
+                                    $twKey = 'TW' . $tw;
+                                    $existing = $laporansIndexed[$i + 1][$twKey] ?? null;
+                                @endphp
+                                <td class="border border-black text-center p-2">
+                                    <div class="flex flex-col items-center gap-1 justify-center">
+                                         @if ($existing && !empty($existing->lampiran))
+                                             @php
+                                                 $statusColor = 'text-blue-500';
+                                                 if ($existing->status == 'disetujui' || $existing->status == 'Terverifikasi') {
+                                                     $statusColor = 'text-green-600';
+                                                 } elseif ($existing->status == 'ditolak') {
+                                                     $statusColor = 'text-red-600';
+                                                 }
+                                             @endphp
+                                             <span class="text-xs font-semibold {{ $statusColor }}" style="font-size: 10px;">
+                                                 @if($existing->status == 'disetujui' || $existing->status == 'Terverifikasi')
+                                                     ✅ Disetujui
+                                                 @elseif($existing->status == 'ditolak')
+                                                     ❌ Ditolak
+                                                 @else
+                                                     ⏳ Pending
+                                                 @endif
+                                             </span>
+                                             
+                                             <a href="{{ asset('storage/' . $existing->lampiran) }}" target="_blank" class="text-xs text-blue-600 hover:underline" style="font-size: 10px;" title="Unduh Laporan">
+                                                 📂 Lihat File
+                                             </a>
+                                             
+                                             @if ($existing->status !== 'disetujui' && $existing->status !== 'Terverifikasi')
+                                                 <button class="open-upload-modal text-xs text-amber-600 hover:underline mt-1" data-indikator-id="{{ $i + 1 }}" data-tw="TW{{ $tw }}" style="font-size: 9px;">
+                                                     ✏️ Ubah File
+                                                 </button>
+                                             @endif
+                                         @else
+                                             <button class="open-upload-modal px-2 py-1 bg-gray-100 hover:bg-gray-200 border rounded" data-indikator-id="{{ $i + 1 }}" data-tw="TW{{ $tw }}" title="Upload Laporan">
+                                                 ⬆️
+                                             </button>
+                                         @endif
+                                    </div>
                                 </td>
                             @endfor
                         </tr>
@@ -78,6 +133,7 @@
 
                 <input type="hidden" name="indikator_id" id="indikatorInput">
                 <input type="hidden" name="tw" id="twInput">
+                <input type="hidden" name="tahun" value="{{ $tahun }}">
 
                 <input type="file" name="file" required class="mb-4 w-full border">
 
@@ -111,6 +167,11 @@
         document.getElementById('closeModal').onclick = () => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+        }
+
+        // Filter by Year Function
+        function filterByYear(year) {
+            window.location.href = '?tahun=' + year;
         }
     </script>
 @endsection

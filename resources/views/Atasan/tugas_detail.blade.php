@@ -70,6 +70,7 @@
   }
   .status-pending { background: #fef3c7; color: #b45309; }
   .status-review { background: #dbeafe; color: #1e40af; }
+  .status-approval { background: #e0f2fe; color: #0369a1; }
   .status-revisi { background: #fee2e2; color: #b91c1c; }
   .status-selesai { background: #dcfce7; color: #15803d; }
 
@@ -92,6 +93,18 @@
     transition: background 0.2s;
   }
   .btn-approve:hover { background: #12815ee0; }
+  
+  .btn-revision-toggle {
+    background: #f59e0b;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-revision-toggle:hover { background: #d97706; }
   
   .btn-disabled {
     background: #e5e7eb;
@@ -195,9 +208,16 @@
             @php
                 $statusClass = 'status-pending';
                 $statusLabel = $tugas['status'];
-                if($tugas['status'] == 'Selesai') $statusClass = 'status-selesai';
-                elseif($tugas['status'] == 'Revisi') $statusClass = 'status-revisi';
-                elseif($tugas['status'] == 'Menunggu Review') $statusClass = 'status-review';
+                if($tugas['status'] == 'Selesai') {
+                    $statusClass = 'status-selesai';
+                } elseif($tugas['status'] == 'Revisi') {
+                    $statusClass = 'status-revisi';
+                } elseif($tugas['status'] == 'Menunggu Approval') {
+                    $statusClass = 'status-approval';
+                } else { // Pending or Menunggu Review
+                    $statusClass = 'status-pending';
+                    $statusLabel = 'Pending';
+                }
             @endphp
             <span class="status-badge {{ $statusClass }}">
                 {{ $statusLabel }}
@@ -206,17 +226,27 @@
       </div>
     </div>
 
-    <!-- Approve Button -->
+    <!-- Approve & Revisi Buttons -->
     <div class="approval-section">
         @if($tugas['status'] == 'Selesai')
-            <button class="btn-approve btn-disabled" disabled>Approve</button>
-        @else
-            <form method="POST" action="{{ route('tugas.approve', $tugas['id']) }}">
-                @csrf
-                <button type="submit" class="btn-approve" onclick="return confirm('Apakah Anda yakin ingin menyetujui tugas ini?')">
-                    ✓ Approve Tugas
+            <button class="btn-approve btn-disabled" disabled>Selesai / Approved</button>
+        @elseif(in_array($tugas['status'], ['Menunggu Approval', 'Menunggu Review']) || !empty($tugas['file_selesai']))
+            <div class="flex items-center gap-3">
+                <button type="button" id="btnToggleRevision" onclick="toggleRevisionForm()" class="btn-revision-toggle">
+                    📝 Minta Revisi
                 </button>
-            </form>
+
+                <form method="POST" action="{{ route('tugas.approve', $tugas['id']) }}">
+                    @csrf
+                    <button type="submit" class="btn-approve" onclick="return confirm('Apakah Anda yakin ingin menyetujui tugas ini?')">
+                        ✓ Approve Tugas
+                    </button>
+                </form>
+            </div>
+        @else
+            <button class="btn-approve btn-disabled" disabled style="background:#9ca3af; cursor:not-allowed;" title="Tugas belum diserahkan untuk persetujuan Atasan">
+                Approve Tugas
+            </button>
         @endif
     </div>
   </div>
@@ -236,7 +266,7 @@
     <div class="file-box">
         <div class="mr-3 text-2xl">📄</div>
         <div>
-            <div class="text-sm text-gray-500">File Terlampir:</div>
+            <div class="text-sm text-gray-500">File Terlampir @if(!empty($tugas['file_selesai_oleh'])) (Oleh: {{ $tugas['file_selesai_oleh'] }}) @endif:</div>
             <a href="{{ asset('storage/tugas_selesai/' . $tugas['file_selesai']) }}" target="_blank">
                 {{ $tugas['file_selesai'] }}
             </a>
@@ -256,27 +286,31 @@
   @endif
 
 
-  <!-- Form Revisi / Komentar -->
-  <!-- Tampilkan form ini jika status BELUM Selesai, agar Atasan bisa minta revisi -->
-  @if($tugas['status'] != 'Selesai')
-  <div class="section-card" style="border-left: 4px solid #f59e0b;">
-    <h3 class="section-title text-amber-700">📝 Minta Revisi / Kirim Catatan</h3>
-    <p class="text-sm text-gray-600 mb-4">Jika hasil pengerjaan belum sesuai, silakan berikan catatan revisi di bawah ini.</p>
+  <!-- Form Revisi / Komentar (Disembunyikan secara default, muncul saat tombol Minta Revisi diklik) -->
+  @if($tugas['status'] !== 'Selesai' && (in_array($tugas['status'], ['Menunggu Approval', 'Menunggu Review']) || !empty($tugas['file_selesai'])))
+  <div id="revisionFormCard" class="section-card" style="display: none; border-left: 4px solid #f59e0b;">
+    <h3 class="section-title text-amber-700">📝 Form Catatan Revisi</h3>
+    <p class="text-sm text-gray-600 mb-4">Jika hasil pengerjaan belum sesuai, silakan berikan catatan masukan/revisi di bawah ini.</p>
     
     <form method="POST" action="{{ route('tugas.respon', $tugas['id']) }}" enctype="multipart/form-data" class="revision-form">
         @csrf
         
-        <textarea name="respon" rows="4" placeholder="Tulis detail revisi atau masukan.....">{{ $tugas['respon'] }}</textarea>
+        <textarea name="respon" rows="4" placeholder="Tuliskan detail revisi atau masukan untuk penerima tugas..." required>{{ $tugas['respon'] }}</textarea>
         
-        <div class="flex items-center justify-between mt-2">
+        <div class="flex items-center justify-between mt-3">
             <div>
                 <label class="text-sm font-medium text-gray-700 block mb-1">Lampiran Revisi (Opsional)</label>
                 <input type="file" name="file_respon" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
             </div>
             
-            <button type="submit" class="btn-revise">
-                Kirim Revisi
-            </button>
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="toggleRevisionForm()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium text-sm hover:bg-gray-100 transition-colors cursor-pointer">
+                    Batal
+                </button>
+                <button type="submit" class="btn-revise">
+                    Kirim Revisi
+                </button>
+            </div>
         </div>
     </form>
   </div>
@@ -296,4 +330,24 @@
   @endif
 
 </div>
+
+<script>
+function toggleRevisionForm() {
+    const card = document.getElementById('revisionFormCard');
+    const btn = document.getElementById('btnToggleRevision');
+
+    if (card) {
+        if (card.style.display === 'none' || card.style.display === '') {
+            card.style.display = 'block';
+            if (btn) btn.style.display = 'none';
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const textarea = card.querySelector('textarea');
+            if (textarea) textarea.focus();
+        } else {
+            card.style.display = 'none';
+            if (btn) btn.style.display = 'inline-block';
+        }
+    }
+}
+</script>
 @endsection

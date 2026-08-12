@@ -28,13 +28,15 @@
     }
   </style>
   <script>
-    // Setelah 2.5 detik, ke halaman login
+    // Setelah 3 detik, berpindah otomatis ke halaman login
     setTimeout(() => {
       window.location.href = '/login';
-    }, 2500);
+    }, 3000);
   </script>
 </head>
 <body>
-  <img src="{{ asset('images/sioplas-logo.png') }}" alt="Sioplas Logo">
+  <img src="{{ asset('images/logo_sioplas_baru_1786462581542-removebg-preview.png') }}" alt="Sioplas Logo">
 </body>
 </html>
+
+

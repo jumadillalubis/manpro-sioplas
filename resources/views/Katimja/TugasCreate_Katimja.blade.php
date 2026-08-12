@@ -3,100 +3,177 @@
 @section('title', 'Buat Tugas Baru')
 
 @section('content')
-    <div class="card bg-white shadow-lg rounded-lg p-6">
-        <h4 class="text-2xl font-semibold text-gray-800 mb-6">Buat Tugas Baru</h4>
+<div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        <!-- Form untuk Buat Tugas Baru -->
-        <form action="{{ route('katimja.tugas.store') }}" method="POST" enctype="multipart/form-data">
-            @csrf
+    {{-- Alert Messages --}}
+    @if(session('error'))
+        <div class="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-center gap-3 text-sm font-medium">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>{{ session('error') }}</div>
+        </div>
+    @endif
 
-            {{-- Task Type Toggle --}}
-            <div class="mb-4">
-                <label class="text-sm font-semibold text-gray-700">Jenis Tugas</label>
-                <div class="mt-2 flex items-center space-x-6">
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="tipe_tugas" value="personal" class="form-radio text-indigo-600" checked onchange="toggleRecipient('personal')">
-                        <span class="ml-2 text-gray-700">Personal (Perorangan)</span>
-                    </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="tipe_tugas" value="tim" class="form-radio text-indigo-600" onchange="toggleRecipient('tim')">
-                        <span class="ml-2 text-gray-700">Tim Kerja (Satu Divisi)</span>
-                    </label>
-                </div>
+    @if($errors->any())
+        <div class="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-medium">
+            <div class="font-semibold mb-1">Terdapat kesalahan pada isian form:</div>
+            <ul class="list-disc list-inside space-y-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Page Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Buat Tugas Baru</h1>
+            <p class="text-slate-500 text-sm mt-1">Lengkapi data di bawah ini untuk mengirimkan tugas baru.</p>
+        </div>
+        <div>
+            <a href="{{ route('tugas.katimja') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Kembali
+            </a>
+        </div>
+    </div>
+
+    {{-- Main Form Card --}}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8">
+
+        {{-- Switch Personal / Tim --}}
+        <div class="mb-6">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Jenis Penugasan</label>
+            <div class="bg-slate-100 p-1.5 rounded-xl grid grid-cols-2 gap-1 max-w-md">
+                <button type="button" id="btnPersonal" class="py-2.5 px-4 text-sm font-semibold rounded-lg transition-all text-blue-600 bg-white shadow-sm" onclick="switchKatimjaTask('personal')">
+                    Pegawai (Perorangan)
+                </button>
+                <button type="button" id="btnTim" class="py-2.5 px-4 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg transition-all" onclick="switchKatimjaTask('tim')">
+                    Tim Kerja (Satu Divisi)
+                </button>
             </div>
+        </div>
 
-            {{-- Recipient Selection (Only for Personal) --}}
-            <div class="mb-4" id="div-penerima">
-                <label for="penerima" class="text-sm font-semibold text-gray-700">Pilih Staff</label>
-                <select name="penerima" id="penerima" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-indigo-200">
-                    <option value="">-- Pilih Staff --</option>
+        {{-- Form --}}
+        <form class="space-y-5" id="createTaskFormKatimja" action="{{ route('katimja.tugas.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="tipe_tugas" id="inputTipeTugas" value="personal">
+
+            {{-- PEGAWAI (PERSONAL) --}}
+            <div id="formPersonal">
+                <label for="selectPegawai" class="block text-sm font-semibold text-slate-700 mb-2">Pilih Staff <span class="text-rose-500">*</span></label>
+                <select id="selectPegawai" name="penerima" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 text-sm bg-white transition-all">
+                    <option value="">Pilih Staff Target</option>
                     @foreach($staff as $s)
-                        <option value="{{ $s->nama }}">{{ $s->nama }}</option>
+                        <option value="{{ $s->nama }}">{{ $s->nama }} {{ isset($s->jabatan) ? '- ' . $s->jabatan : '' }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="mb-4" id="div-tim" style="display: none;">
-                <label class="text-sm font-semibold text-gray-700">Penerima</label>
-                <div class="mt-2 p-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-600">
-                    Akan ditugaskan kepada seluruh anggota <strong>{{ session('user_divisi') }}</strong>
+            {{-- TIM KERJA (Satu Divisi) --}}
+            <div id="formTim" style="display:none">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Penerima Tugas</label>
+                <div class="p-4 bg-blue-50/60 border border-blue-200 rounded-xl text-blue-900 text-sm flex items-center gap-3">
+                    <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <div>
+                        Tugas ini akan ditugaskan kepada seluruh staf di divisi <strong>{{ session('user_divisi') ?? 'Anda' }}</strong>.
+                    </div>
                 </div>
-                {{-- Hidden input to send division name as recipient if needed, handled in Controller --}}
             </div>
 
-            <div class="mb-4">
-                <label for="judul" class="text-sm font-semibold text-gray-700">Judul Tugas</label>
-                <input type="text" name="judul" id="judul"
-                    class="block w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-indigo-200" required>
+            {{-- Judul Tugas --}}
+            <div>
+                <label for="inputJudul" class="block text-sm font-semibold text-slate-700 mb-2">Judul Tugas <span class="text-rose-500">*</span></label>
+                <input type="text" id="inputJudul" name="judul" placeholder="Masukkan judul tugas yang jelas" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder-slate-400 text-sm transition-all">
             </div>
-            
-            <div class="mb-4">
-                <label for="deskripsi" class="text-sm font-semibold text-gray-700">Deskripsi Tugas</label>
-                <textarea name="deskripsi" id="deskripsi" rows="4" class="block w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-indigo-200"
-                    required></textarea>
+
+            {{-- Deskripsi --}}
+            <div>
+                <label for="inputDeskripsi" class="block text-sm font-semibold text-slate-700 mb-2">Deskripsi Tugas <span class="text-rose-500">*</span></label>
+                <textarea id="inputDeskripsi" name="deskripsi" rows="4" placeholder="Tuliskan instruksi detail mengenai tugas..." required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder-slate-400 text-sm transition-all resize-none"></textarea>
             </div>
-            
-            <div class="mb-4">
-                <label for="tenggat" class="text-sm font-semibold text-gray-700">Tanggal Deadline</label>
-                <input type="date" name="tenggat" id="tenggat"
-                    class="block w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-indigo-200" required>
-            </div>
-            
-            <div class="mb-6">
-                <label for="file" class="text-sm font-semibold text-gray-700">Lampiran (Opsional)</label>
-                <div class="mt-2 relative border border-gray-300 rounded-lg shadow-sm bg-gray-50">
-                    <input type="file" name="file" id="file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+
+            {{-- Upload File --}}
+            <div>
+                <label for="inputFile" class="block text-sm font-semibold text-slate-700 mb-2">Upload Lampiran / Dokumen <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                <div class="relative flex items-center justify-center w-full border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-4 transition-colors bg-slate-50/50 hover:bg-blue-50/20 group">
+                    <input type="file" id="inputFile" name="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <div class="text-center">
+                        <svg class="mx-auto h-8 w-8 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <p class="mt-1 text-sm text-slate-600" id="fileNameText">Klik atau seret file ke sini untuk mengunggah</p>
+                        <p class="text-xs text-slate-400 mt-0.5">PDF, DOCX, XLSX, JPG, PNG (Maks 10MB)</p>
+                    </div>
                 </div>
             </div>
-            
-            <div class="flex justify-end">
-                <a href="{{ route('tugas.katimja') }}" class="mr-3 px-6 py-2 border border-gray-300 rounded-full text-gray-700 font-medium hover:bg-gray-50 transition-colors">
-                    Batal
-                </a>
-                <button type="submit"
-                    class="px-6 py-2 bg-indigo-600 text-white font-medium rounded-full shadow-md hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Buat Tugas
+
+            {{-- Tenggat Waktu --}}
+            <div>
+                <label for="inputTenggat" class="block text-sm font-semibold text-slate-700 mb-2">Tenggat Waktu (Deadline) <span class="text-rose-500">*</span></label>
+                <input type="date" id="inputTenggat" name="tenggat" required class="w-full sm:w-64 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 text-sm transition-all bg-white">
+            </div>
+
+            {{-- Submit Button --}}
+            <div class="pt-4 flex justify-end">
+                <button type="submit" id="btnSubmit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-all duration-200 shadow-md hover:shadow-lg focus:ring-2 focus:ring-blue-500/40 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Kirim Tugas
                 </button>
             </div>
         </form>
     </div>
+</div>
 
-    <script>
-        function toggleRecipient(type) {
-            const divPenerima = document.getElementById('div-penerima');
-            const divTim = document.getElementById('div-tim');
-            const selectPenerima = document.getElementById('penerima');
+<script>
+function switchKatimjaTask(type) {
+    const btnPersonal = document.getElementById('btnPersonal');
+    const btnTim = document.getElementById('btnTim');
+    const formPersonal = document.getElementById('formPersonal');
+    const formTim = document.getElementById('formTim');
+    const selectPegawai = document.getElementById('selectPegawai');
+    const inputTipeTugas = document.getElementById('inputTipeTugas');
 
-            if (type === 'personal') {
-                divPenerima.style.display = 'block';
-                divTim.style.display = 'none';
-                selectPenerima.required = true;
-            } else {
-                divPenerima.style.display = 'none';
-                divTim.style.display = 'block';
-                selectPenerima.required = false;
-                selectPenerima.value = ""; // Reset selection
-            }
-        }
-    </script>
+    if (type === 'personal') {
+        btnPersonal.className = "py-2.5 px-4 text-sm font-semibold rounded-lg transition-all text-blue-600 bg-white shadow-sm";
+        btnTim.className = "py-2.5 px-4 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg transition-all";
+        formPersonal.style.display = 'block';
+        formTim.style.display = 'none';
+        
+        selectPegawai.disabled = false;
+        selectPegawai.required = true;
+        inputTipeTugas.value = 'personal';
+    } else {
+        btnTim.className = "py-2.5 px-4 text-sm font-semibold rounded-lg transition-all text-blue-600 bg-white shadow-sm";
+        btnPersonal.className = "py-2.5 px-4 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg transition-all";
+        formTim.style.display = 'block';
+        formPersonal.style.display = 'none';
+
+        selectPegawai.disabled = true;
+        selectPegawai.required = false;
+        selectPegawai.value = "";
+        inputTipeTugas.value = 'tim';
+    }
+}
+
+// Display chosen file name
+document.getElementById('inputFile').addEventListener('change', function(e) {
+    const fileNameText = document.getElementById('fileNameText');
+    if (e.target.files && e.target.files.length > 0) {
+        fileNameText.textContent = 'File terpilih: ' + e.target.files[0].name;
+        fileNameText.classList.add('font-semibold', 'text-blue-600');
+    } else {
+        fileNameText.textContent = 'Klik atau seret file ke sini untuk mengunggah';
+        fileNameText.classList.remove('font-semibold', 'text-blue-600');
+    }
+});
+</script>
 @endsection

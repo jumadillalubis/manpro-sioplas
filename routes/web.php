@@ -22,6 +22,10 @@ Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
 Route::post('/login', [LoginController::class, 'authenticate'])->name('login.post');
 Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
 
+// Route OTP (2FA) — hanya bisa diakses setelah tahap 1 login berhasil
+Route::get('/otp', [LoginController::class, 'showOtp'])->name('otp.show');
+Route::post('/otp', [LoginController::class, 'verifyOtp'])->name('otp.verify');
+
 Route::get('/reset-password', [App\Http\Controllers\ResetPasswordController::class, 'showResetForm'])->name('reset-password');
 Route::post('/reset-password', [App\Http\Controllers\ResetPasswordController::class, 'processReset'])->name('reset-password.process');
 
@@ -183,9 +187,14 @@ Route::post('/settings/password', [SettingsController::class, 'updatePassword'])
 
 
 
-Route::post('/notification/read/{id}', function ($id) {
-    // nanti kalau pakai DB → update is_read
-    return back();
-})->name('notification.read');
+Route::get('/notification/read/{id}', [NotificationController::class, 'markAsReadAndRedirect'])->name('notification.read');
+
+// Endpoint JSON untuk polling notifikasi real-time (dipanggil JS setiap 30 detik)
+Route::get('/notifikasi/live', [NotificationController::class, 'liveNotifications'])->name('notification.live');
 
 Route::post('/ai/summarize', [App\Http\Controllers\AiSummrizeController::class, 'summarize'])->name('ai.summarize');
+Route::post('/ai/summarize-yearly', [App\Http\Controllers\AiSummrizeController::class, 'summarizeYearly'])->name('ai.summarize_yearly');
+
+// Catatan Pribadi (Notepad) Sync Database
+Route::get('/user/note', [App\Http\Controllers\NoteController::class, 'getNote'])->name('note.get');
+Route::post('/user/note', [App\Http\Controllers\NoteController::class, 'saveNote'])->name('note.save');
